@@ -1,0 +1,120 @@
+name: Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  linter-validation:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install packages
+        run: pipenv install --dev --system
+
+      - name: Pylint validation with external packages
+        run: pipenv run lint
+
+  packages-validation:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install packages
+        run: pipenv install --dev --system
+
+      - name: Pipenv validation
+        run: pipenv install --deploy
+
+  testing:
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: azkaban
+          POSTGRES_PASSWORD: azkaban_test
+          POSTGRES_DB: azkaban_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install packages
+        run: pipenv install --dev --system
+
+      - name: Run tests
+        run: pipenv run test
+
+  coverage:
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: azkaban
+          POSTGRES_PASSWORD: azkaban_test
+          POSTGRES_DB: azkaban_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install packages
+        run: pipenv install --dev --system
+
+      - name: Run general coverage
+        run: |
+          pipenv run test
+          coverage report --fail-under=97 --show-missing
+

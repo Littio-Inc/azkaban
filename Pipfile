@@ -1,0 +1,39 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+fastapi = "*"
+mangum = "*"
+firebase-admin = "*"
+sqlalchemy = "*"
+alembic = "*"
+psycopg2-binary = "*"
+pydantic = "*"
+pydantic-settings = "*"
+email-validator = "*"
+python-dotenv = "*"
+uvicorn = {extras = ["standard"], version = "*"}
+pyotp = "*"
+qrcode = {extras = ["pil"], version = "*"}
+httpx = "*"
+
+[dev-packages]
+wemake-python-styleguide = "*"
+flake8-import-order = "*"
+boto3 = "*"
+faker = "*"
+coverage = "*"
+fakeredis = "*"
+
+[requires]
+python_version = "3.11"
+
+[scripts]
+lint = "flake8 app handler.py"
+test = "coverage run --omit='*/test_*.py' -m unittest discover -s . -p 'test_*.py' -v"
+test-unit = "coverage run --omit='*/test_*.py' -m unittest discover -s app -p 'test_*.py' -v"
+test-integration = "coverage run --omit='*/test_*.py' -m unittest discover -s tests/integration -p 'test_*.py' -v"
+coverage-report = "coverage report -m"
+coverage-html = "coverage html"

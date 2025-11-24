@@ -1,0 +1,42 @@
+FROM public.ecr.aws/lambda/python:3.11 AS base
+
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
+ARG AWS_DEFAULT_REGION
+ARG VPC_SECURITY_GROUP_ID
+ARG SUBNET_ID_ONE
+ARG SUBNET_ID_TWO
+ARG SECRET_MANAGER_AZKABAN_ARN
+
+ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+ENV AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION
+ENV VPC_SECURITY_GROUP_ID=$VPC_SECURITY_GROUP_ID
+ENV SUBNET_ID_ONE=$SUBNET_ID_ONE
+ENV SUBNET_ID_TWO=$SUBNET_ID_TWO
+ENV SECRET_MANAGER_AZKABAN_ARN=$SECRET_MANAGER_AZKABAN_ARN
+
+WORKDIR /app
+COPY . /app
+
+RUN yum update -y
+RUN yum install -y sudo gcc-c++ make
+RUN yum install https://rpm.nodesource.com/pub_16.x/nodistro/repo/nodesource-release-nodistro-1.noarch.rpm -y
+RUN yum install nodejs -y --setopt=nodesource-nodejs.module_hotfixes=1
+
+RUN pip install pipenv==2023.7.4
+# Install only production packages (skip dev-packages like boto3)
+# Note: pipenv install --system without --dev flag only installs [packages], not [dev-packages]
+RUN pipenv install --deploy --system
+RUN npm install --global serverless
+RUN npm install
+RUN pip install awscli
+
+FROM base AS staging
+
+ENTRYPOINT ["serverless", "deploy", "--stage", "staging"]
+
+FROM base AS production
+
+ENTRYPOINT ["serverless", "deploy", "--stage", "production"]
+

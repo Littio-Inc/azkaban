@@ -1,0 +1,21 @@
+{
+  "name": "azkaban",
+  "version": "1.0.0",
+  "description": "Azkaban - Authentication Service",
+  "main": "handler.py",
+  "scripts": {
+    "offline": "serverless offline start --noAuth --stage local"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Littio-Inc/dobby.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-offline": "^13.8.2",
+    "serverless-python-requirements": "^6.1.0"
+  }
+}
+

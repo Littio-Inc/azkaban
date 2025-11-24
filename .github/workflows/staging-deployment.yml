@@ -1,0 +1,59 @@
+name: Staging deployment
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Create .env file
+        env:
+          ENV_FILE: .env
+        run: |
+          secrets=$(aws secretsmanager get-secret-value --secret-id azkaban-staging --query SecretString --output text)
+          touch $ENV_FILE
+          echo "ENVIRONMENT=$(echo $secrets | jq -r .ENVIRONMENT)" >> $ENV_FILE
+          echo "FIREBASE_PROJECT_ID=$(echo $secrets | jq -r .FIREBASE_PROJECT_ID)" >> $ENV_FILE
+          echo "FIREBASE_PRIVATE_KEY=$(echo $secrets | jq -r .FIREBASE_PRIVATE_KEY)" >> $ENV_FILE
+          echo "FIREBASE_CLIENT_EMAIL=$(echo $secrets | jq -r .FIREBASE_CLIENT_EMAIL)" >> $ENV_FILE
+          echo "DATABASE_URL=$(echo $secrets | jq -r .DATABASE_URL)" >> $ENV_FILE
+          echo "SECRET_MANAGER_AZKABAN_ARN=$(echo $secrets | jq -r .SECRET_MANAGER_AZKABAN_ARN)" >> $ENV_FILE
+          cors_origins=$(echo $secrets | jq -r .CORS_ALLOWED_ORIGINS)
+          if [ -z "$cors_origins" ] || [ "$cors_origins" = "null" ]; then
+            echo "CORS_ALLOWED_ORIGINS=*" >> $ENV_FILE
+          else
+            echo "CORS_ALLOWED_ORIGINS=$cors_origins" >> $ENV_FILE
+          fi
+          echo "AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }}" >> $ENV_FILE
+
+      - name: Deploy functions
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          secrets=$(aws secretsmanager get-secret-value --secret-id azkaban-staging --query SecretString --output text)
+          docker build . --file Dockerfile-deployment --tag deployment --target staging \
+            --build-arg AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            --build-arg AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }} \
+            --build-arg VPC_SECURITY_GROUP_ID=$(echo $secrets | jq -r .VPC_SECURITY_GROUP_ID) \
+            --build-arg SUBNET_ID_ONE=$(echo $secrets | jq -r .SUBNET_ID_ONE) \
+            --build-arg SUBNET_ID_TWO=$(echo $secrets | jq -r .SUBNET_ID_TWO) \
+            --build-arg SECRET_MANAGER_AZKABAN_ARN=$(echo $secrets | jq -r .SECRET_MANAGER_AZKABAN_ARN)
+          docker run --env-file .env deployment

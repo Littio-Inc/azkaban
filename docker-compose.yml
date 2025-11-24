@@ -1,0 +1,39 @@
+# Docker Compose for Azkaban (Authentication Service)
+# Standalone configuration - independent repository
+#
+# NOTE: Database (PostgreSQL) is managed in ministry/docker-compose.yml
+# This service connects to the database service from ministry
+
+services:
+  # Azkaban API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: azkaban-api
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      # Connect to database from ministry docker-compose network
+      # For local development without Docker: use localhost:5433
+      DATABASE_URL: ${DATABASE_URL:-postgresql://azkaban:azkaban_dev@azkaban-db:5432/azkaban_db}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@littio.co}
+      FIXED_OTP_CODE: ${FIXED_OTP_CODE:-123456}
+    ports:
+      - "8001:8000"
+    networks:
+      - ministry_default
+    volumes:
+      - .:/app
+    command: uvicorn handler:app --host 0.0.0.0 --port 8000 --reload
+
+networks:
+  ministry_default:
+    external: true
+
