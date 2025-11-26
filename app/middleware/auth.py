@@ -5,12 +5,75 @@ import traceback
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from firebase_admin import auth as firebase_auth
+
+from app.common.firebase_client import FirebaseClient
 
 logger = logging.getLogger(__name__)
 
+# Initialize Firebase client (singleton pattern)
+firebase_client: FirebaseClient | None = None  # noqa: WPS121
+
+
+def _get_firebase_client() -> FirebaseClient:
+    """Get or create Firebase client instance.
+
+    Returns:
+        FirebaseClient instance
+    """
+    global firebase_client  # noqa: WPS420
+    if firebase_client is None:
+        firebase_client = FirebaseClient()
+    return firebase_client
+
 
 security = HTTPBearer(auto_error=False)
+
+
+def _handle_value_error(verify_error: ValueError) -> None:
+    """Handle ValueError from token verification.
+
+    Args:
+        verify_error: ValueError exception
+
+    Raises:
+        HTTPException: Appropriate HTTP exception based on error message
+    """
+    error_msg = str(verify_error)
+    if "Invalid token format" in error_msg:
+        logger.warning("InvalidIdTokenError: %s", verify_error)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido"
+        )
+    if "Token expired" in error_msg:
+        logger.warning("ExpiredIdTokenError: %s", verify_error)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expirado"
+        )
+    logger.error("Unexpected error verifying token: %s: %s", type(verify_error).__name__, verify_error)
+    logger.error("Traceback: %s", traceback.format_exc())
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=f"Error de autenticación: {error_msg}"
+    )
+
+
+def _handle_generic_error(verify_error: Exception) -> None:
+    """Handle generic exception from token verification.
+
+    Args:
+        verify_error: Generic exception
+
+    Raises:
+        HTTPException: HTTP 401 exception
+    """
+    logger.error("Unexpected error verifying token: %s: %s", type(verify_error).__name__, verify_error)
+    logger.error("Traceback: %s", traceback.format_exc())
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=f"Error de autenticación: {str(verify_error)}"
+    )
 
 
 def _verify_firebase_token(token: str) -> dict:
@@ -25,28 +88,13 @@ def _verify_firebase_token(token: str) -> dict:
     Raises:
         HTTPException: If token is invalid or expired
     """
+    firebase_client = _get_firebase_client()
     try:
-        decoded_token = firebase_auth.verify_id_token(token)
-    except firebase_auth.InvalidIdTokenError as invalid_error:
-        logger.warning("InvalidIdTokenError: %s", invalid_error)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido"
-        )
-    except firebase_auth.ExpiredIdTokenError as expired_error:
-        logger.warning("ExpiredIdTokenError: %s", expired_error)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expirado"
-        )
+        return firebase_client.verify_id_token(token)
+    except ValueError as verify_error:
+        _handle_value_error(verify_error)
     except Exception as verify_error:
-        logger.error("Unexpected error verifying token: %s: %s", type(verify_error).__name__, verify_error)
-        logger.error("Traceback: %s", traceback.format_exc())
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Error de autenticación: {str(verify_error)}"
-        )
-    return decoded_token
+        _handle_generic_error(verify_error)
 
 
 def _extract_user_from_token(decoded_token: dict) -> dict:

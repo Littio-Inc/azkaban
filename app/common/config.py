@@ -1,23 +1,33 @@
-"""Firebase Admin SDK configuration."""
+"""Firebase Admin SDK configuration.
 
-import firebase_admin as firebase_admin_sdk
-from firebase_admin import credentials
+This module initializes Firebase Admin SDK on import.
+The actual Firebase client is now in app.common.firebase_client.FirebaseClient.
+"""
 
-from app.common.secrets import get_secret
+
+def _init_firebase_client() -> None:
+    """Initialize Firebase client if available."""
+    try:
+        FirebaseClient()  # noqa: WPS122
+    except Exception:
+        pass  # noqa: WPS420
 
 
-# Initialize Firebase Admin SDK
-if not firebase_admin_sdk._apps:
-    project_id = get_secret("FIREBASE_PROJECT_ID")
-    private_key = get_secret("FIREBASE_PRIVATE_KEY")
-    client_email = get_secret("FIREBASE_CLIENT_EMAIL")
+# Import and instantiate FirebaseClient to ensure Firebase is initialized
+# This maintains backward compatibility for imports like:
+# from app.common.config import firebase_client
+try:
+    from app.common.firebase_client import FirebaseClient
+except ImportError:
+    FirebaseClient = None  # type: ignore
+else:
+    # Firebase config is optional for local dev
+    # If Firebase initialization fails, continue without it
+    # The authorizer will handle its own initialization
+    _init_firebase_client()
 
-    if project_id and private_key and client_email:
-        cred = credentials.Certificate({
-            "type": "service_account",
-            "project_id": project_id,
-            "private_key": private_key.replace("\\n", "\n"),  # noqa: WPS342
-            "client_email": client_email,
-            "token_uri": "https://oauth2.googleapis.com/token",
-        })
-        firebase_admin_sdk.initialize_app(cred)
+# For backward compatibility, expose firebase_admin
+try:
+    import firebase_admin as firebase_admin  # noqa: F401
+except ImportError:
+    firebase_admin = None

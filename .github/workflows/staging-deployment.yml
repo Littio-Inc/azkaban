@@ -30,9 +30,6 @@ jobs:
           secrets=$(aws secretsmanager get-secret-value --secret-id azkaban-staging --query SecretString --output text)
           touch $ENV_FILE
           echo "ENVIRONMENT=$(echo $secrets | jq -r .ENVIRONMENT)" >> $ENV_FILE
-          echo "FIREBASE_PROJECT_ID=$(echo $secrets | jq -r .FIREBASE_PROJECT_ID)" >> $ENV_FILE
-          echo "FIREBASE_PRIVATE_KEY=$(echo $secrets | jq -r .FIREBASE_PRIVATE_KEY)" >> $ENV_FILE
-          echo "FIREBASE_CLIENT_EMAIL=$(echo $secrets | jq -r .FIREBASE_CLIENT_EMAIL)" >> $ENV_FILE
           echo "DATABASE_URL=$(echo $secrets | jq -r .DATABASE_URL)" >> $ENV_FILE
           echo "SECRET_MANAGER_AZKABAN_ARN=$(echo $secrets | jq -r .SECRET_MANAGER_AZKABAN_ARN)" >> $ENV_FILE
           cors_origins=$(echo $secrets | jq -r .CORS_ALLOWED_ORIGINS)

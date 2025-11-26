@@ -1,11 +1,11 @@
 """Tests for secrets management."""
 
-import unittest
 import os
-from unittest.mock import patch, MagicMock
+import unittest
+from unittest.mock import MagicMock, patch
 
-from app.common.secrets import get_secret
 from app.common.enums import Environment
+from app.common.secrets import get_secret
 
 
 class TestSecrets(unittest.TestCase):
@@ -120,7 +120,39 @@ class TestSecrets(unittest.TestCase):
         secret = get_secret("TEST_SECRET")
         self.assertEqual(secret, "fallback_secret_value")
 
+    @patch.dict("sys.modules", {"boto3": None})
+    def test_get_secret_boto3_import_error(self):
+        """Test getting secret when boto3 import fails."""
+        import sys
+        import app.common.secrets as secrets_module
+
+        # Simulate ImportError by removing boto3 from the module
+        original_boto3 = getattr(secrets_module, "boto3", None)
+        secrets_module.boto3 = None
+        secrets_module.secrets = {}
+
+        os.environ["ENVIRONMENT"] = "staging"
+        os.environ["SECRET_MANAGER_AZKABAN_ARN"] = "arn:aws:secretsmanager:us-east-1:123456789:secret:azkaban-staging"
+        os.environ["TEST_SECRET"] = "fallback_secret_value"
+
+        secret = get_secret("TEST_SECRET")
+        self.assertEqual(secret, "fallback_secret_value")
+
+        # Restore original boto3
+        if original_boto3 is not None:
+            secrets_module.boto3 = original_boto3
+
+    def test_get_secret_not_found_staging(self):
+        """Test getting secret that doesn't exist in staging."""
+        os.environ["ENVIRONMENT"] = "staging"
+        if "SECRET_MANAGER_AZKABAN_ARN" in os.environ:
+            del os.environ["SECRET_MANAGER_AZKABAN_ARN"]
+        if "TEST_SECRET" in os.environ:
+            del os.environ["TEST_SECRET"]
+
+        secret = get_secret("TEST_SECRET")
+        self.assertIsNone(secret)
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -149,8 +149,7 @@ async def verify_totp(
         dict: Verification result
     """
     firebase_uid = current_user.get(FIREBASE_UID_KEY)
-    log_verify = f"Verifying TOTP code for firebase_uid={firebase_uid}"
-    logger.info(log_verify)
+    logger.info(f"Verifying TOTP code for firebase_uid={firebase_uid}")
 
     # Get user's TOTP secret
     secret = TOTPStorageService.get_secret(firebase_uid)
@@ -162,6 +161,11 @@ async def verify_totp(
 
     # Verify TOTP code
     is_valid = TOTPService.verify_totp(secret, request.totp_code)
+    if not is_valid and _is_dev_or_staging():
+        fixed_otp_code = os.getenv("FIXED_OTP_CODE", "")
+        if fixed_otp_code and request.totp_code == fixed_otp_code:
+            logger.info(f"Using fixed OTP code for firebase_uid={firebase_uid} in development")
+            is_valid = True
 
     if not is_valid:
         raise HTTPException(
@@ -169,8 +173,7 @@ async def verify_totp(
             detail="Código TOTP inválido. Asegúrate de usar el código más reciente de Google Authenticator."
         )
 
-    log_verified = f"TOTP code valid for firebase_uid={firebase_uid}, marking verified"
-    logger.info(log_verified)
+    logger.info(f"TOTP code valid for firebase_uid={firebase_uid}, marking verified")
     if not TOTPStorageService.is_verified(firebase_uid):
         TOTPStorageService.mark_verified(firebase_uid)
 

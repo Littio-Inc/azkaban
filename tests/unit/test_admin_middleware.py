@@ -1,8 +1,10 @@
 """Tests for admin middleware."""
 
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from fastapi import HTTPException
+
 from app.middleware.admin import get_admin_user
 
 

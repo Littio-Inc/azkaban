@@ -33,7 +33,7 @@ RUN npm install
 RUN pip install awscli
 
 FROM base AS staging
-
+RUN aws s3 cp s3://api-credentials-development/littio-auth-dev-firebase-adminsdk-he956-4e5bd2dc84.json service-account.json
 ENTRYPOINT ["serverless", "deploy", "--stage", "staging"]
 
 FROM base AS production

@@ -96,23 +96,13 @@ class UserService:  # noqa: WPS214
         Returns:
             List of user dictionaries
         """
-        db = SessionLocal()
-        try:
-            query = db.query(User).offset(skip).limit(limit)
-        except SQLAlchemyError as db_error:
-            logger.error("Error querying users: %s", db_error)
-            db.close()
-            return []
-        try:
-            users = query.all()
-        except SQLAlchemyError as db_error:
-            logger.error("Error getting users: %s", db_error)
-            db.close()
-            return []
-        finally:
-            db.close()
-
-        return [_user_to_dict(user) for user in users]
+        with SessionLocal() as db:
+            try:
+                users = UserService._query_all_users(db, skip, limit)
+            except SQLAlchemyError as db_error:
+                logger.error("Error querying users: %s", db_error)
+                return []
+            return [_user_to_dict(user) for user in users]  # noqa: WPS204
 
     @staticmethod
     def get_user_by_firebase_uid(firebase_uid: str) -> dict | None:
@@ -124,25 +114,15 @@ class UserService:  # noqa: WPS214
         Returns:
             User dictionary or None
         """
-        db = SessionLocal()
-        try:
-            query = db.query(User).filter(User.firebase_uid == firebase_uid)
-        except SQLAlchemyError as db_error:
-            logger.error(ERROR_QUERYING_USER, db_error)
-            db.close()
-            return None
-        try:
-            user = query.first()
-        except SQLAlchemyError as db_error:
-            logger.error("Error getting user: %s", db_error)
-            db.close()
-            return None
-        finally:
-            db.close()
-
-        if not user:
-            return None
-        return _user_to_dict(user)
+        with SessionLocal() as db:
+            try:
+                user = UserService._get_user_by_firebase_uid_internal(db, firebase_uid)
+            except SQLAlchemyError as db_error:
+                logger.error(ERROR_QUERYING_USER, db_error)
+                return None
+            if not user:
+                return None
+            return _user_to_dict(user)
 
     @staticmethod
     def get_user_by_email(email: str) -> dict | None:
@@ -154,25 +134,31 @@ class UserService:  # noqa: WPS214
         Returns:
             User dictionary or None
         """
-        db = SessionLocal()
-        try:
-            query = db.query(User).filter(User.email == email)
-        except SQLAlchemyError as db_error:
-            logger.error("Error querying user by email: %s", db_error)
-            db.close()
-            return None
-        try:
-            user = query.first()
-        except SQLAlchemyError as db_error:
-            logger.error("Error getting user by email: %s", db_error)
-            db.close()
-            return None
-        finally:
-            db.close()
+        with SessionLocal() as db:
+            try:
+                user = UserService._query_user_by_email(db, email)
+            except SQLAlchemyError as db_error:
+                logger.error("Error querying user by email: %s", db_error)
+                return None
+            if not user:
+                return None
+            return _user_to_dict(user)
 
-        if not user:
-            return None
-        return _user_to_dict(user)
+    @staticmethod
+    def get_user_by_id(user_id: str) -> dict | None:
+        """Get user by ID.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            User dictionary or None
+        """
+        with SessionLocal() as db:
+            user = UserService._get_user_by_id_internal(db, user_id)
+            if not user:
+                return None
+            return _user_to_dict(user)
 
     @staticmethod
     def is_admin(firebase_uid: str) -> bool:
@@ -184,8 +170,7 @@ class UserService:  # noqa: WPS214
         Returns:
             True if user is admin, False otherwise
         """
-        db = SessionLocal()
-        try:  # noqa: WPS229
+        with SessionLocal() as db:
             user = UserService._get_user_by_firebase_uid_internal(db, firebase_uid)
             if user is None:
                 logger.debug("User not found in database")
@@ -193,8 +178,6 @@ class UserService:  # noqa: WPS214
             is_admin_result = user.role == UserRole.ADMIN.value
             logger.debug("User role: %s, is_admin: %s", user.role, is_admin_result)
             return is_admin_result
-        finally:
-            db.close()
 
     @staticmethod
     def create_or_update_user(
@@ -214,18 +197,14 @@ class UserService:  # noqa: WPS214
         Returns:
             User dictionary
         """
-        db = SessionLocal()
-        try:  # noqa: WPS229
+        with SessionLocal() as db:
             user = UserService._get_user_by_firebase_uid_internal(db, firebase_uid)
             if user:
                 UserService._update_existing_user(user, email, name, picture)
             else:
                 user = UserService._create_new_user(db, firebase_uid, email, name, picture)
             UserService._commit_and_refresh_user(db, user)
-        finally:
-            db.close()
-
-        return _user_to_dict(user)
+            return _user_to_dict(user)
 
     @staticmethod
     def update_user_status(user_id: str, is_active: bool) -> dict | None:
@@ -238,25 +217,85 @@ class UserService:  # noqa: WPS214
         Returns:
             Updated user dictionary or None
         """
-        db = SessionLocal()
-        try:
+        with SessionLocal() as db:
             user = UserService._get_user_by_id_internal(db, user_id)
-        finally:
-            db.close()
+            if user is None:
+                return None
+            UserService._update_user_status_internal(user, is_active)
+            UserService._commit_and_refresh_user(db, user)
+            return _user_to_dict(user)
 
-        if user is None:
+    @staticmethod
+    def update_user_role(user_id: str, role: str) -> dict | None:
+        """Update user role.
+
+        Args:
+            user_id: User ID
+            role: New role ('admin' or 'user')
+
+        Returns:
+            Updated user dictionary or None
+        """
+        # Validate role
+        if role not in [UserRole.ADMIN.value, UserRole.USER.value]:
+            logger.error("Invalid role: %s", role)
             return None
 
-        user.is_active = is_active
-        user.updated_at = datetime.utcnow()
-
-        db = SessionLocal()
-        try:
+        with SessionLocal() as db:
+            user = UserService._get_user_by_id_internal(db, user_id)
+            if user is None:
+                return None
+            UserService._update_user_role_internal(user, role)
             UserService._commit_and_refresh_user(db, user)
-        finally:
-            db.close()
+            return _user_to_dict(user)
 
-        return _user_to_dict(user)
+    @staticmethod
+    def update_last_login(firebase_uid: str) -> dict | None:
+        """Update user's last login timestamp.
+
+        Args:
+            firebase_uid: Firebase user ID
+
+        Returns:
+            Updated user dictionary or None
+        """
+        with SessionLocal() as db:
+            user = UserService._get_user_by_firebase_uid_internal(db, firebase_uid)
+            if user is None:
+                return None
+            UserService._update_last_login_internal(user)
+            UserService._commit_and_refresh_user(db, user)
+            return _user_to_dict(user)
+
+    # Private helper methods - query methods
+    @staticmethod
+    def _query_all_users(db: Session, skip: int, limit: int) -> list[User]:
+        """Query all users from database.
+
+        Args:
+            db: Database session
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+
+        Returns:
+            List of User instances
+        """
+        query = db.query(User).offset(skip).limit(limit)
+        return query.all()
+
+    @staticmethod
+    def _query_user_by_email(db: Session, email: str) -> User | None:
+        """Query user by email from database.
+
+        Args:
+            db: Database session
+            email: User email
+
+        Returns:
+            User instance or None
+        """
+        query = db.query(User).filter(User.email == email)
+        return query.first()
 
     @staticmethod
     def _get_user_by_firebase_uid_internal(db: Session, firebase_uid: str) -> User | None:
@@ -281,6 +320,61 @@ class UserService:  # noqa: WPS214
             return None
 
     @staticmethod
+    def _get_user_by_id_internal(db: Session, user_id: str) -> User | None:
+        """Get user by ID from session.
+
+        Args:
+            db: Database session
+            user_id: User ID
+
+        Returns:
+            User instance or None
+        """
+        try:
+            query = db.query(User).filter(User.id == user_id)
+        except SQLAlchemyError as db_error:
+            logger.error(ERROR_QUERYING_USER, db_error)
+            return None
+        try:
+            return query.first()
+        except SQLAlchemyError as db_error:
+            logger.error("Error getting user: %s", db_error)
+            return None
+
+    # Private helper methods - update methods
+    @staticmethod
+    def _update_user_status_internal(user: User, is_active: bool) -> None:
+        """Update user active status internally.
+
+        Args:
+            user: User instance
+            is_active: New active status
+        """
+        user.is_active = is_active
+        user.updated_at = datetime.utcnow()
+
+    @staticmethod
+    def _update_user_role_internal(user: User, role: str) -> None:
+        """Update user role internally.
+
+        Args:
+            user: User instance
+            role: New role
+        """
+        user.role = role
+        user.updated_at = datetime.utcnow()
+
+    @staticmethod
+    def _update_last_login_internal(user: User) -> None:
+        """Update user's last login timestamp internally.
+
+        Args:
+            user: User instance
+        """
+        user.last_login = datetime.utcnow()
+        user.updated_at = datetime.utcnow()
+
+    @staticmethod
     def _update_existing_user(user: User, email: str, name: str | None, picture: str | None) -> None:
         """Update existing user fields.
 
@@ -296,6 +390,7 @@ class UserService:  # noqa: WPS214
         if picture:
             user.picture = picture
         user.updated_at = datetime.utcnow()
+        user.last_login = datetime.utcnow()  # Update last login on sync
 
     @staticmethod
     def _create_new_user(
@@ -354,25 +449,3 @@ class UserService:  # noqa: WPS214
         except SQLAlchemyError as db_error:
             logger.error("Error refreshing user: %s", db_error)
             raise
-
-    @staticmethod
-    def _get_user_by_id_internal(db: Session, user_id: str) -> User | None:
-        """Get user by ID from session.
-
-        Args:
-            db: Database session
-            user_id: User ID
-
-        Returns:
-            User instance or None
-        """
-        try:
-            query = db.query(User).filter(User.id == user_id)
-        except SQLAlchemyError as db_error:
-            logger.error(ERROR_QUERYING_USER, db_error)
-            return None
-        try:
-            return query.first()
-        except SQLAlchemyError as db_error:
-            logger.error("Error getting user: %s", db_error)
-            return None

@@ -1,12 +1,13 @@
 """Integration tests for authentication routes."""
 
 import unittest
-import os
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
-from app.routes.auth_routes import router
-from app.middleware.auth import get_current_user
+from unittest.mock import patch
+
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from app.middleware.auth import get_current_user
+from app.routes.auth_routes import router
 
 
 class TestAuthRoutes(unittest.TestCase):
@@ -137,6 +138,29 @@ class TestAuthRoutes(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Código TOTP inválido", response.json()["detail"])
+
+    @patch("app.routes.auth_routes.TOTPStorageService")
+    @patch("app.routes.auth_routes.TOTPService")
+    def test_verify_totp_fixed_code_dev(
+        self, mock_totp_service, mock_totp_storage
+    ):
+        """Test TOTP verification with fixed code in development."""
+        self._mock_get_current_user()
+        mock_totp_storage.get_secret.return_value = "TEST_SECRET_123"
+        mock_totp_service.verify_totp.return_value = False
+        mock_totp_storage.is_verified.return_value = False
+
+        with patch("app.routes.auth_routes.os.getenv") as mock_getenv:
+            mock_getenv.side_effect = lambda key, default="": "local" if key == "ENVIRONMENT" else "123456" if key == "FIXED_OTP_CODE" else default
+            response = self.client.post(
+                "/verify-totp",
+                json={"totp_code": "123456"},
+                headers={"Authorization": "Bearer test-token"}
+            )
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertTrue(data["verified"])
+            mock_totp_storage.mark_verified.assert_called_once()
 
     @patch("app.routes.auth_routes.TOTPStorageService")
     def test_get_totp_status_configured(

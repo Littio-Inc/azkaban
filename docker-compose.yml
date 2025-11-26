@@ -13,9 +13,11 @@ services:
     container_name: azkaban-api
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-local}
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
-      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
-      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      # Firebase credentials are loaded from service-account.json file if available
+      # For local development, you can either:
+      # 1. Place service-account.json in the project root (recommended)
+      # 2. Or use FIREBASE_CREDENTIALS env var with the full JSON
+      FIREBASE_CREDENTIALS: ${FIREBASE_CREDENTIALS:-}
       # Connect to database from ministry docker-compose network
       # For local development without Docker: use localhost:5433
       DATABASE_URL: ${DATABASE_URL:-postgresql://azkaban:azkaban_dev@azkaban-db:5432/azkaban_db}
@@ -31,6 +33,8 @@ services:
       - ministry_default
     volumes:
       - .:/app
+      # Mount service-account.json if it exists locally
+      - ./service-account.json:/app/service-account.json:ro
     command: uvicorn handler:app --host 0.0.0.0 --port 8000 --reload
 
 networks:

@@ -2,6 +2,7 @@
 
 import logging
 import os
+from typing import Any
 
 try:
     import unzip_requirements  # noqa: F401
@@ -87,3 +88,21 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "Internal server error"},
     )
+
+
+def lambda_authorizer_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:  # noqa: WPS210
+    """Lambda Authorizer handler for AWS API Gateway.
+
+    This function verifies Firebase ID tokens and generates IAM policies
+    to allow/deny access to API Gateway resources.
+
+    Args:
+        event: API Gateway authorizer event
+        context: Lambda context
+
+    Returns:
+        IAM policy document with user context
+    """
+    from app.authorizers.handler import lambda_authorizer_handler as authorizer_handler  # noqa: WPS433
+
+    return authorizer_handler(event, _context)

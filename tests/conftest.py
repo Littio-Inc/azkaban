@@ -1,12 +1,11 @@
 """Test configuration and utilities."""
 
-import os
 import unittest
-from unittest.mock import MagicMock, patch
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.user import User, Base
-from app.models.totp_secret import TOTPSecret
+
+from app.models.user import Base
 
 
 # Use in-memory SQLite for testing
