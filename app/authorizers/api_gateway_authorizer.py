@@ -5,12 +5,18 @@ try:
 except ImportError:
     unzip_requirements = None
 else:
-    _ = unzip_requirements
+    _ = unzip_requirements  # noqa: WPS122
 
 import logging
 from typing import Any
 
 from firebase_admin import auth as firebase_auth
+try:
+    from app.common.config import firebase_admin  # noqa: F401
+except ImportError:
+    firebase_admin = None  # noqa: F401
+else:
+    _ = firebase_admin  # noqa: WPS122
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +80,13 @@ def _extract_token(event: dict[str, Any]) -> str:
     """
     token = event.get("authorizationToken", "")
     if not token:
+        headers = event.get("headers") or {}
+        headers_message = f"Authorizer headers: {headers.keys()}"
+        logger.info(headers_message)
+        warning_message = f"Authorization header missing, headers keys={list(headers.keys())}"
+        logger.info(warning_message)
+        token = headers.get("authorization") or headers.get("Authorization", "")
+    if not token:
         raise Exception("Unauthorized: No token provided")
     if token.startswith("Bearer "):
         token = token.replace("Bearer ", "")
@@ -95,8 +108,10 @@ def _verify_token(token: str) -> dict[str, Any]:
     try:
         decoded_token = firebase_auth.verify_id_token(token)
     except firebase_auth.InvalidIdTokenError:
+        logger.info("Firebase token invalid")
         raise Exception("Unauthorized: Invalid token")
     except firebase_auth.ExpiredIdTokenError:
+        logger.info("Firebase token expired")
         raise Exception("Unauthorized: Token expired")
     return decoded_token
 
@@ -187,6 +202,7 @@ def lambda_authorizer_handler(event: dict[str, Any], _context: Any) -> dict[str,
     Returns:
         IAM policy document with user context
     """
+    logger.info("Authorizer event: %s", {k: event.get(k) for k in ('routeKey', 'methodArn', 'headers')})
     try:
         token = _extract_token(event)
     except Exception as extract_error:
@@ -196,7 +212,7 @@ def lambda_authorizer_handler(event: dict[str, Any], _context: Any) -> dict[str,
     try:
         decoded_token = _verify_token(token)
     except Exception as verify_error:
-        logger.error("Error verifying token: %s", verify_error)
+        logger.error(f"Error verifying token: {verify_error}")
         return _generate_deny_policy(event)
 
     user_info = _extract_user_info(decoded_token)
@@ -204,7 +220,7 @@ def lambda_authorizer_handler(event: dict[str, Any], _context: Any) -> dict[str,
 
     # Verify email domain (optional - can be done in Rules)
     if not email.endswith("@littio.co"):
-        logger.warning("User %s is not from @littio.co domain", email)
+        logger.warning(f"User {email} is not from @littio.co domain")
 
     method_arn = event.get("methodArn", "")
     resource = _build_resource_arn(method_arn)
@@ -218,5 +234,5 @@ def lambda_authorizer_handler(event: dict[str, Any], _context: Any) -> dict[str,
         context=authorizer_context
     )
 
-    logger.info("Successfully authorized user %s (%s)", email, firebase_uid)
+    logger.info(f"Successfully authorized user {email} ({firebase_uid})")
     return policy
