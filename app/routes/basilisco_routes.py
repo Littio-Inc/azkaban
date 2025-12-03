@@ -11,12 +11,43 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Query parameter defaults
+DEFAULT_PAGE = 1
+DEFAULT_LIMIT = 10
+MIN_PAGE = 1
+MIN_LIMIT = 1
+MAX_LIMIT = 100
+
+
+def _get_transactions_data(provider: str | None, page: int, limit: int) -> dict:
+    """Get transactions data from Basilisco service.
+
+    Args:
+        provider: Optional provider filter
+        page: Page number
+        limit: Number of results per page
+
+    Returns:
+        Transactions data dictionary
+
+    Raises:
+        ValueError: If configuration error occurs
+        Exception: If other error occurs
+    """
+    return BasiliscoService.get_transactions(
+        provider=provider,
+        page=page,
+        limit=limit
+    )
+
 
 @router.get("/backoffice/transactions")
 async def get_backoffice_transactions(
-    provider: str | None = Query(None, description="Filter by provider (e.g., 'fireblocks')"),
-    page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(10, ge=1, le=100, description="Number of results per page"),
+    provider: str | None = Query(None, description="Filter by provider (e.g., 'fireblocks')"),  # noqa: WPS404
+    page: int = Query(DEFAULT_PAGE, ge=MIN_PAGE, description="Page number"),  # noqa: WPS404
+    limit: int = Query(  # noqa: WPS404
+        DEFAULT_LIMIT, ge=MIN_LIMIT, le=MAX_LIMIT, description="Number of results per page"
+    ),
     admin_user: dict = Depends(get_admin_user)  # noqa: WPS404
 ):
     """Get backoffice transactions from Basilisco.
@@ -43,21 +74,17 @@ async def get_backoffice_transactions(
     )
 
     try:
-        transactions_data = BasiliscoService.get_transactions(
-            provider=provider,
-            page=page,
-            limit=limit
-        )
-        return transactions_data
-    except ValueError as e:
-        logger.error("Configuration error: %s", e)
+        transactions_data = _get_transactions_data(provider, page, limit)
+    except ValueError as config_error:
+        logger.error("Configuration error: %s", config_error)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Basilisco service configuration error"
         )
-    except Exception as e:
-        logger.error("Error getting transactions from Basilisco: %s", e)
+    except Exception as exc:
+        logger.error("Error getting transactions from Basilisco: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Error retrieving transactions from Basilisco service"
         )
+    return transactions_data

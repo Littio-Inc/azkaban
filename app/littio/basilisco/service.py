@@ -19,6 +19,55 @@ class BasiliscoService:
     """Service for interacting with Basilisco API."""
 
     @staticmethod
+    def get_transactions(
+        provider: str | None = None,
+        page: int = 1,
+        limit: int = 10
+    ) -> dict[str, Any]:
+        """Get transactions from Basilisco API.
+
+        Args:
+            provider: Transaction provider filter (e.g., 'fireblocks')
+            page: Page number (default: 1)
+            limit: Number of results per page (default: 10)
+
+        Returns:
+            Dictionary containing transactions and pagination info
+
+        Raises:
+            httpx.HTTPStatusError: If API request fails
+            ValueError: If API key or base URL is not found
+        """
+        url = BasiliscoService._build_url()
+        headers = BasiliscoService._build_headers()
+        params = BasiliscoService._build_request_params(provider, page, limit)
+
+        logger.info(
+            "Calling Basilisco API: %s with params: %s",
+            url,
+            params
+        )
+
+        try:
+            with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
+                response = client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as http_error:
+            logger.error(
+                "Basilisco API error: %s - %s",
+                http_error.response.status_code,
+                http_error.response.text
+            )
+            raise
+        except httpx.RequestError as request_error:
+            logger.error("Basilisco API request error: %s", request_error)
+            raise
+        except Exception as exc:
+            logger.error("Unexpected error calling Basilisco API: %s", exc)
+            raise
+
+    @staticmethod
     def _get_base_url() -> str:
         """Get Basilisco base URL from secrets.
 
@@ -49,62 +98,47 @@ class BasiliscoService:
         return api_key
 
     @staticmethod
-    def get_transactions(
-        provider: str | None = None,
-        page: int = 1,
-        limit: int = 10
-    ) -> dict[str, Any]:
-        """Get transactions from Basilisco API.
-
-        Args:
-            provider: Transaction provider filter (e.g., 'fireblocks')
-            page: Page number (default: 1)
-            limit: Number of results per page (default: 10)
+    def _build_url() -> str:
+        """Build the full API URL.
 
         Returns:
-            Dictionary containing transactions and pagination info
+            Complete API URL
 
         Raises:
-            httpx.HTTPStatusError: If API request fails
-            ValueError: If API key or base URL is not found
+            ValueError: If base URL is not found
         """
         base_url = BasiliscoService._get_base_url()
-        api_key = BasiliscoService._get_api_key()
+        return f"{base_url}/v1/backoffice/transactions"
 
-        # Build query parameters
+    @staticmethod
+    def _build_headers() -> dict[str, str]:
+        """Build request headers.
+
+        Returns:
+            Dictionary with request headers
+
+        Raises:
+            ValueError: If API key is not found
+        """
+        api_key = BasiliscoService._get_api_key()
+        return {"x-api-key": api_key}
+
+    @staticmethod
+    def _build_request_params(provider: str | None, page: int, limit: int) -> dict[str, Any]:
+        """Build query parameters for API request.
+
+        Args:
+            provider: Transaction provider filter
+            page: Page number
+            limit: Number of results per page
+
+        Returns:
+            Dictionary with query parameters
+        """
         params: dict[str, Any] = {
             "page": page,
             "limit": limit,
         }
         if provider:
             params["provider"] = provider
-
-        url = f"{base_url}/v1/backoffice/transactions"
-        headers = {
-            "x-api-key": api_key,
-        }
-
-        logger.info(
-            "Calling Basilisco API: %s with params: %s",
-            url,
-            params
-        )
-
-        try:
-            with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
-                response = client.get(url, headers=headers, params=params)
-                response.raise_for_status()
-                return response.json()
-        except httpx.HTTPStatusError as e:
-            logger.error(
-                "Basilisco API error: %s - %s",
-                e.response.status_code,
-                e.response.text
-            )
-            raise
-        except httpx.RequestError as e:
-            logger.error("Basilisco API request error: %s", e)
-            raise
-        except Exception as e:
-            logger.error("Unexpected error calling Basilisco API: %s", e)
-            raise
+        return params
