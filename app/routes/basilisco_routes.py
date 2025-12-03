@@ -42,7 +42,7 @@ def _get_transactions_data(provider: str | None, page: int, limit: int) -> dict:
 
 
 @router.get("/backoffice/transactions")
-async def get_backoffice_transactions(
+def get_backoffice_transactions(
     provider: str | None = Query(None, description="Filter by provider (e.g., 'fireblocks')"),  # noqa: WPS404
     page: int = Query(DEFAULT_PAGE, ge=MIN_PAGE, description="Page number"),  # noqa: WPS404
     limit: int = Query(  # noqa: WPS404

@@ -32,6 +32,8 @@ jobs:
           echo "ENVIRONMENT=$(echo $secrets | jq -r .ENVIRONMENT)" >> $ENV_FILE
           echo "DATABASE_URL=$(echo $secrets | jq -r .DATABASE_URL)" >> $ENV_FILE
           echo "SECRET_MANAGER_AZKABAN_ARN=$(echo $secrets | jq -r .SECRET_MANAGER_AZKABAN_ARN)" >> $ENV_FILE
+          echo "BASILISCO_API_KEY=$(echo $secrets | jq -r .BASILISCO_API_KEY)" >> $ENV_FILE
+          echo "BASILISCO_BASE_URL=$(echo $secrets | jq -r .BASILISCO_BASE_URL)" >> $ENV_FILE
           cors_origins=$(echo $secrets | jq -r .CORS_ALLOWED_ORIGINS)
           if [ -z "$cors_origins" ] || [ "$cors_origins" = "null" ]; then
             echo "CORS_ALLOWED_ORIGINS=*" >> $ENV_FILE
