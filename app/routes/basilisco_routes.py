@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.littio.basilisco.service import BasiliscoService
-from app.middleware.admin import get_admin_user
+from app.middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -48,23 +48,23 @@ async def get_backoffice_transactions(
     limit: int = Query(  # noqa: WPS404
         DEFAULT_LIMIT, ge=MIN_LIMIT, le=MAX_LIMIT, description="Number of results per page"
     ),
-    admin_user: dict = Depends(get_admin_user)  # noqa: WPS404
+    current_user: dict = Depends(get_current_user)  # noqa: WPS404
 ):
     """Get backoffice transactions from Basilisco.
 
-    This endpoint requires admin authentication and proxies requests to Basilisco API.
+    This endpoint requires authentication and proxies requests to Basilisco API.
 
     Args:
         provider: Optional provider filter (e.g., 'fireblocks')
         page: Page number (default: 1, minimum: 1)
         limit: Number of results per page (default: 10, minimum: 1, maximum: 100)
-        admin_user: Current authenticated admin user
+        current_user: Current authenticated user
 
     Returns:
         dict: Transactions and pagination information from Basilisco
 
     Raises:
-        HTTPException: If API call fails or user is not admin
+        HTTPException: If API call fails or user is not authenticated
     """
     logger.info(
         "Getting backoffice transactions - provider: %s, page: %s, limit: %s",

@@ -6,7 +6,7 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.middleware.admin import get_admin_user
+from app.middleware.auth import get_current_user
 from app.routes.basilisco_routes import router
 
 
@@ -18,13 +18,11 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.app = FastAPI()
         self.app.include_router(router, prefix="/v1")
         self.client = TestClient(self.app)
-        self.mock_admin_user = {
-            "id": "admin-1",
-            "firebase_uid": "admin-uid-123",
-            "email": "admin@littio.co",
-            "name": "Admin User",
-            "role": "admin",
-            "is_active": True,
+        self.mock_current_user = {
+            "firebase_uid": "user-uid-123",
+            "email": "user@littio.co",
+            "name": "Test User",
+            "picture": None,
         }
 
     def tearDown(self):
@@ -35,7 +33,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
     @patch("app.routes.basilisco_routes.BasiliscoService")
     def test_get_backoffice_transactions_success(self, mock_basilisco_service):
         """Test getting backoffice transactions successfully."""
-        self.app.dependency_overrides[get_admin_user] = lambda: self.mock_admin_user
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         mock_transactions_data = {
             "transactions": [
@@ -72,7 +70,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
     @patch("app.routes.basilisco_routes.BasiliscoService")
     def test_get_backoffice_transactions_without_provider(self, mock_basilisco_service):
         """Test getting transactions without provider filter."""
-        self.app.dependency_overrides[get_admin_user] = lambda: self.mock_admin_user
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         mock_transactions_data = {
             "transactions": [],
@@ -96,7 +94,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
     @patch("app.routes.basilisco_routes.BasiliscoService")
     def test_get_backoffice_transactions_configuration_error(self, mock_basilisco_service):
         """Test getting transactions when configuration error occurs."""
-        self.app.dependency_overrides[get_admin_user] = lambda: self.mock_admin_user
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         mock_basilisco_service.get_transactions.side_effect = ValueError("BASILISCO_API_KEY not found in secrets")
 
@@ -109,7 +107,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
     @patch("app.routes.basilisco_routes.BasiliscoService")
     def test_get_backoffice_transactions_generic_error(self, mock_basilisco_service):
         """Test getting transactions when generic error occurs."""
-        self.app.dependency_overrides[get_admin_user] = lambda: self.mock_admin_user
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         mock_basilisco_service.get_transactions.side_effect = Exception("Network error")
 
@@ -122,7 +120,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
     @patch("app.routes.basilisco_routes.BasiliscoService")
     def test_get_backoffice_transactions_default_params(self, mock_basilisco_service):
         """Test getting transactions with default parameters."""
-        self.app.dependency_overrides[get_admin_user] = lambda: self.mock_admin_user
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         mock_transactions_data = {
             "transactions": [],
