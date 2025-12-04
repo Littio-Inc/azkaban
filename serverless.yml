@@ -157,6 +157,10 @@ functions:
           path: /v1/vault/accounts
           authorizer: azkaban-authorizer
       - httpApi:
+          method: POST
+          path: /v1/vault/accounts/{accountId}/{asset}/balance
+          authorizer: azkaban-authorizer
+      - httpApi:
           method: get
           path: /health
       - httpApi:

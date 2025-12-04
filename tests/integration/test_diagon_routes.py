@@ -119,6 +119,58 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertEqual(data, [])
         mock_diagon_service.get_accounts.assert_called_once()
 
+    @patch("app.routes.diagon_routes.DiagonService")
+    def test_refresh_balance_success(self, mock_diagon_service):
+        """Test refreshing balance successfully."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        account_id = "5"
+        asset = "USDC_AMOY_POLYGON_TEST_7WWV"
+        mock_response_data = {
+            "message": "Balance refresh initiated successfully",
+            "idempotencyKey": "1a70d158-f499-427d-9337-745be60113b1"
+        }
+
+        mock_diagon_service.refresh_balance.return_value = mock_response_data
+
+        response = self.client.post(f"/v1/vault/accounts/{account_id}/{asset}/balance")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["message"], "Balance refresh initiated successfully")
+        self.assertEqual(data["idempotencyKey"], "1a70d158-f499-427d-9337-745be60113b1")
+        mock_diagon_service.refresh_balance.assert_called_once_with(account_id, asset)
+
+    @patch("app.routes.diagon_routes.DiagonService")
+    def test_refresh_balance_configuration_error(self, mock_diagon_service):
+        """Test refreshing balance when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        account_id = "5"
+        asset = "USDC_AMOY_POLYGON_TEST_7WWV"
+        mock_diagon_service.refresh_balance.side_effect = ValueError("DIAGON_API_KEY not found in secrets")
+
+        response = self.client.post(f"/v1/vault/accounts/{account_id}/{asset}/balance")
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.diagon_routes.DiagonService")
+    def test_refresh_balance_generic_error(self, mock_diagon_service):
+        """Test refreshing balance when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        account_id = "5"
+        asset = "USDC_AMOY_POLYGON_TEST_7WWV"
+        mock_diagon_service.refresh_balance.side_effect = Exception("Network error")
+
+        response = self.client.post(f"/v1/vault/accounts/{account_id}/{asset}/balance")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error refreshing balance", data["detail"].lower())
+
 
 if __name__ == "__main__":
     unittest.main()

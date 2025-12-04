@@ -54,6 +54,45 @@ class DiagonService:
             raise
 
     @staticmethod
+    def refresh_balance(account_id: str, asset: str) -> dict[str, Any]:
+        """Refresh balance for a specific account and asset.
+
+        Args:
+            account_id: Account ID
+            asset: Asset identifier
+
+        Returns:
+            Dictionary containing message and idempotency key
+
+        Raises:
+            httpx.HTTPStatusError: If API request fails
+            ValueError: If API key or base URL is not found
+        """
+        url = DiagonService._build_refresh_balance_url(account_id, asset)
+        headers = DiagonService._build_headers()
+
+        logger.info("Refreshing balance for account %s, asset %s: %s", account_id, asset, url)
+
+        try:
+            with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
+                response = client.post(url, headers=headers)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as http_error:
+            logger.error(
+                "Diagon API error refreshing balance: %s - %s",
+                http_error.response.status_code,
+                http_error.response.text
+            )
+            raise
+        except httpx.RequestError as request_error:
+            logger.error("Diagon API request error refreshing balance: %s", request_error)
+            raise
+        except Exception as exc:
+            logger.error("Unexpected error refreshing balance in Diagon API: %s", exc)
+            raise
+
+    @staticmethod
     def _get_base_url() -> str:
         """Get Diagon base URL from secrets.
 
@@ -108,3 +147,20 @@ class DiagonService:
         """
         api_key = DiagonService._get_api_key()
         return {"X-API-KEY": api_key}
+
+    @staticmethod
+    def _build_refresh_balance_url(account_id: str, asset: str) -> str:
+        """Build the URL for refresh balance endpoint.
+
+        Args:
+            account_id: Account ID
+            asset: Asset identifier
+
+        Returns:
+            Complete API URL for refresh balance
+
+        Raises:
+            ValueError: If base URL is not found
+        """
+        base_url = DiagonService._get_base_url()
+        return f"{base_url}/vault/accounts/{account_id}/{asset}/balance"

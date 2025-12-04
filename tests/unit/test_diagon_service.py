@@ -259,6 +259,177 @@ class TestDiagonService(unittest.TestCase):
         headers = DiagonService._build_headers()
         self.assertEqual(headers["X-API-KEY"], api_key)
 
+    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.littio.diagon.service.httpx.Client")
+    def test_refresh_balance_success(self, mock_client_class, mock_get_secret):
+        """Test refreshing balance successfully."""
+        base_url = fake.url().rstrip("/")
+        api_key = fake.password(length=32, special_chars=False)
+        account_id = fake.uuid4()
+        asset = fake.bothify(text="????_####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+        mock_get_secret.side_effect = lambda key: {
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": api_key
+        }.get(key)
+
+        idempotency_key = fake.uuid4()
+        mock_response_data = {
+            "message": "Balance refresh initiated successfully",
+            "idempotencyKey": idempotency_key
+        }
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = mock_response_data
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=None)
+        mock_client.post.return_value = mock_response
+        mock_client_class.return_value = mock_client
+
+        result = DiagonService.refresh_balance(account_id, asset)
+
+        self.assertEqual(result["message"], "Balance refresh initiated successfully")
+        self.assertEqual(result["idempotencyKey"], idempotency_key)
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        self.assertEqual(call_args[1]["headers"]["X-API-KEY"], api_key)
+        expected_url = f"{base_url}/vault/accounts/{account_id}/{asset}/balance"
+        self.assertEqual(call_args[0][0], expected_url)
+
+    @patch("app.littio.diagon.service.get_secret")
+    def test_refresh_balance_missing_base_url(self, mock_get_secret):
+        """Test refreshing balance when base URL is missing."""
+        api_key = fake.password(length=32, special_chars=False)
+        account_id = fake.uuid4()
+        asset = fake.bothify(text="????_####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+        mock_get_secret.side_effect = lambda key: {
+            "DIAGON_BASE_URL": None,
+            "DIAGON_API_KEY": api_key
+        }.get(key)
+
+        with self.assertRaises(ValueError) as context:
+            DiagonService.refresh_balance(account_id, asset)
+        self.assertIn("DIAGON_BASE_URL not found in secrets", str(context.exception))
+
+    @patch("app.littio.diagon.service.get_secret")
+    def test_refresh_balance_missing_api_key(self, mock_get_secret):
+        """Test refreshing balance when API key is missing."""
+        base_url = fake.url().rstrip("/")
+        account_id = fake.uuid4()
+        asset = fake.bothify(text="????_####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+        mock_get_secret.side_effect = lambda key: {
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": None
+        }.get(key)
+
+        with self.assertRaises(ValueError) as context:
+            DiagonService.refresh_balance(account_id, asset)
+        self.assertIn("DIAGON_API_KEY not found in secrets", str(context.exception))
+
+    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.littio.diagon.service.httpx.Client")
+    def test_refresh_balance_http_error(self, mock_client_class, mock_get_secret):
+        """Test refreshing balance when API returns HTTP error."""
+        base_url = fake.url().rstrip("/")
+        api_key = fake.password(length=32, special_chars=False)
+        account_id = fake.uuid4()
+        asset = fake.bothify(text="????_####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+        mock_get_secret.side_effect = lambda key: {
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": api_key
+        }.get(key)
+
+        status_code = fake.random_int(min=400, max=599)
+        error_message = fake.text(max_nb_chars=100)
+
+        mock_response = MagicMock()
+        mock_response.status_code = status_code
+        mock_response.text = error_message
+
+        mock_http_error = httpx.HTTPStatusError(
+            "Server error",
+            request=MagicMock(),
+            response=mock_response
+        )
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=None)
+        mock_client.post.return_value = mock_response
+        mock_response.raise_for_status.side_effect = mock_http_error
+        mock_client_class.return_value = mock_client
+
+        with self.assertRaises(httpx.HTTPStatusError):
+            DiagonService.refresh_balance(account_id, asset)
+
+    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.littio.diagon.service.httpx.Client")
+    def test_refresh_balance_request_error(self, mock_client_class, mock_get_secret):
+        """Test refreshing balance when request fails."""
+        base_url = fake.url().rstrip("/")
+        api_key = fake.password(length=32, special_chars=False)
+        account_id = fake.uuid4()
+        asset = fake.bothify(text="????_####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+        mock_get_secret.side_effect = lambda key: {
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": api_key
+        }.get(key)
+
+        error_message = fake.text(max_nb_chars=50)
+        mock_request_error = httpx.RequestError(error_message, request=MagicMock())
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=None)
+        mock_client.post.side_effect = mock_request_error
+        mock_client_class.return_value = mock_client
+
+        with self.assertRaises(httpx.RequestError):
+            DiagonService.refresh_balance(account_id, asset)
+
+    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.littio.diagon.service.httpx.Client")
+    def test_refresh_balance_generic_error(self, mock_client_class, mock_get_secret):
+        """Test refreshing balance when generic error occurs."""
+        base_url = fake.url().rstrip("/")
+        api_key = fake.password(length=32, special_chars=False)
+        account_id = fake.uuid4()
+        asset = fake.bothify(text="????_####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+        mock_get_secret.side_effect = lambda key: {
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": api_key
+        }.get(key)
+
+        error_message = fake.text(max_nb_chars=50)
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=None)
+        mock_client.post.side_effect = Exception(error_message)
+        mock_client_class.return_value = mock_client
+
+        with self.assertRaises(Exception) as context:
+            DiagonService.refresh_balance(account_id, asset)
+        self.assertEqual(str(context.exception), error_message)
+
+    @patch("app.littio.diagon.service.get_secret")
+    def test_build_refresh_balance_url(self, mock_get_secret):
+        """Test building the refresh balance API URL."""
+        base_url = fake.url().rstrip("/")
+        account_id = fake.uuid4()
+        asset = fake.bothify(text="????_####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        mock_get_secret.return_value = base_url
+        url = DiagonService._build_refresh_balance_url(account_id, asset)
+        expected_url = f"{base_url}/vault/accounts/{account_id}/{asset}/balance"
+        self.assertEqual(url, expected_url)
+
 
 if __name__ == "__main__":
     unittest.main()
