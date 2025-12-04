@@ -151,6 +151,10 @@ functions:
           path: /v1/backoffice/transactions
           authorizer: azkaban-authorizer
       - httpApi:
+          method: GET
+          path: /v1/vault/accounts
+          authorizer: azkaban-authorizer
+      - httpApi:
           method: get
           path: /health
       - httpApi:
