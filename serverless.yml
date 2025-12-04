@@ -35,6 +35,8 @@ provider:
     CORS_ALLOWED_ORIGINS: ${env:CORS_ALLOWED_ORIGINS, ""}
     BASILISCO_API_KEY: ${env:BASILISCO_API_KEY}
     BASILISCO_BASE_URL: ${env:BASILISCO_BASE_URL}
+    DIAGON_API_KEY: ${env:DIAGON_API_KEY}
+    DIAGON_BASE_URL: ${env:DIAGON_BASE_URL}
   httpApi:
     cors:
       allowedOrigins:
@@ -149,6 +151,14 @@ functions:
       - httpApi:
           method: GET
           path: /v1/backoffice/transactions
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: GET
+          path: /v1/vault/accounts
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: POST
+          path: /v1/vault/accounts/{accountId}/{asset}/balance
           authorizer: azkaban-authorizer
       - httpApi:
           method: get
