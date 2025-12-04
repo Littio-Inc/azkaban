@@ -33,6 +33,8 @@ provider:
     DATABASE_URL: ${env:DATABASE_URL}
     SECRET_MANAGER_AZKABAN_ARN: ${env:SECRET_MANAGER_AZKABAN_ARN}
     CORS_ALLOWED_ORIGINS: ${env:CORS_ALLOWED_ORIGINS, ""}
+    BASILISCO_API_KEY: ${env:BASILISCO_API_KEY}
+    BASILISCO_BASE_URL: ${env:BASILISCO_BASE_URL}
   httpApi:
     cors:
       allowedOrigins:
@@ -144,6 +146,10 @@ functions:
       - httpApi:
           method: OPTIONS
           path: /v1/{proxy+}
+      - httpApi:
+          method: GET
+          path: /v1/backoffice/transactions
+          authorizer: azkaban-authorizer
       - httpApi:
           method: get
           path: /health
