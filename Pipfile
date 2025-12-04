@@ -26,6 +26,8 @@ boto3 = "*"
 faker = "*"
 coverage = "*"
 fakeredis = "*"
+pytest = "*"
+pytest-mock = "*"
 
 [requires]
 python_version = "3.11"

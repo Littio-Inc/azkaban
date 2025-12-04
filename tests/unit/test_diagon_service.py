@@ -4,8 +4,11 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import httpx
+from faker import Faker
 
 from app.littio.diagon.service import DiagonService
+
+fake = Faker()
 
 
 class TestDiagonService(unittest.TestCase):
@@ -14,17 +17,20 @@ class TestDiagonService(unittest.TestCase):
     @patch("app.littio.diagon.service.get_secret")
     def test_get_base_url_success(self, mock_get_secret):
         """Test getting base URL when secret exists."""
-        mock_get_secret.return_value = "https://api.example.com"
+        base_url_value = fake.url().rstrip("/")
+        mock_get_secret.return_value = base_url_value
         base_url = DiagonService._get_base_url()
-        self.assertEqual(base_url, "https://api.example.com")
+        self.assertEqual(base_url, base_url_value)
         mock_get_secret.assert_called_once_with("DIAGON_BASE_URL")
 
     @patch("app.littio.diagon.service.get_secret")
     def test_get_base_url_with_trailing_slash(self, mock_get_secret):
         """Test getting base URL removes trailing slash."""
-        mock_get_secret.return_value = "https://api.example.com/"
+        base_url_value = fake.url().rstrip("/")
+        url_with_slash = f"{base_url_value}/"
+        mock_get_secret.return_value = url_with_slash
         base_url = DiagonService._get_base_url()
-        self.assertEqual(base_url, "https://api.example.com")
+        self.assertEqual(base_url, base_url_value)
         mock_get_secret.assert_called_once_with("DIAGON_BASE_URL")
 
     @patch("app.littio.diagon.service.get_secret")
@@ -33,14 +39,15 @@ class TestDiagonService(unittest.TestCase):
         mock_get_secret.return_value = None
         with self.assertRaises(ValueError) as context:
             DiagonService._get_base_url()
-        self.assertIn("DIAGON_BASE_URL not found", str(context.exception))
+        self.assertIn("DIAGON_BASE_URL not found in secrets", str(context.exception))
 
     @patch("app.littio.diagon.service.get_secret")
     def test_get_api_key_success(self, mock_get_secret):
         """Test getting API key when secret exists."""
-        mock_get_secret.return_value = "test-api-key-123"
+        api_key_value = fake.password(length=32, special_chars=False)
+        mock_get_secret.return_value = api_key_value
         api_key = DiagonService._get_api_key()
-        self.assertEqual(api_key, "test-api-key-123")
+        self.assertEqual(api_key, api_key_value)
         mock_get_secret.assert_called_once_with("DIAGON_API_KEY")
 
     @patch("app.littio.diagon.service.get_secret")
@@ -49,42 +56,54 @@ class TestDiagonService(unittest.TestCase):
         mock_get_secret.return_value = None
         with self.assertRaises(ValueError) as context:
             DiagonService._get_api_key()
-        self.assertIn("DIAGON_API_KEY not found", str(context.exception))
+        self.assertIn("DIAGON_API_KEY not found in secrets", str(context.exception))
 
     @patch("app.littio.diagon.service.get_secret")
     @patch("app.littio.diagon.service.httpx.Client")
     def test_get_accounts_success(self, mock_client_class, mock_get_secret):
         """Test getting accounts successfully."""
+        base_url = fake.url().rstrip("/")
+        api_key = fake.password(length=32, special_chars=False)
+
         mock_get_secret.side_effect = lambda key: {
-            "DIAGON_BASE_URL": "https://a3a9mlmbsk.execute-api.us-east-1.amazonaws.com/staging",
-            "DIAGON_API_KEY": "wP9xrNemYuKynUJ4bjsL3cpZFQqThVAk"
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": api_key
         }.get(key)
+
+        account_id_1 = fake.uuid4()
+        account_name_1 = fake.company()
+        account_id_2 = fake.uuid4()
+        account_name_2 = fake.company()
+        asset_id = fake.bothify(text="????_####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        asset_amount = fake.pydecimal(left_digits=1, right_digits=2, positive=True)
+        block_height = fake.random_int(min=10000000, max=99999999)
+        block_hash = fake.sha256()
 
         mock_response_data = [
             {
-                "id": "6",
-                "name": "Test2",
+                "id": account_id_1,
+                "name": account_name_1,
                 "hiddenOnUI": False,
                 "autoFuel": False,
                 "assets": []
             },
             {
-                "id": "5",
-                "name": "Littio-Test",
+                "id": account_id_2,
+                "name": account_name_2,
                 "hiddenOnUI": False,
                 "autoFuel": False,
                 "assets": [
                     {
-                        "id": "AMOY_POLYGON_TEST",
-                        "total": "0.2",
-                        "balance": "0.2",
+                        "id": asset_id,
+                        "total": str(asset_amount),
+                        "balance": str(asset_amount),
                         "lockedAmount": "0",
-                        "available": "0.2",
+                        "available": str(asset_amount),
                         "pending": "0",
                         "frozen": "0",
                         "staked": "0",
-                        "blockHeight": "17182897",
-                        "blockHash": "0xbd4b5221dbded68a6c76f809b31f87732b29e2972bf0d9075d2e09e3e2a46fcd"
+                        "blockHeight": str(block_height),
+                        "blockHash": block_hash
                     }
                 ]
             }
@@ -103,58 +122,62 @@ class TestDiagonService(unittest.TestCase):
         result = DiagonService.get_accounts()
 
         self.assertEqual(len(result), 2)
-        self.assertEqual(result[0]["id"], "6")
-        self.assertEqual(result[0]["name"], "Test2")
-        self.assertEqual(result[1]["id"], "5")
-        self.assertEqual(result[1]["name"], "Littio-Test")
+        self.assertEqual(result[0]["id"], account_id_1)
+        self.assertEqual(result[0]["name"], account_name_1)
+        self.assertEqual(result[1]["id"], account_id_2)
+        self.assertEqual(result[1]["name"], account_name_2)
         self.assertEqual(len(result[1]["assets"]), 1)
         mock_client.get.assert_called_once()
         call_args = mock_client.get.call_args
-        self.assertEqual(
-            call_args[1]["headers"]["X-API-KEY"],
-            "wP9xrNemYuKynUJ4bjsL3cpZFQqThVAk"
-        )
-        self.assertIn(
-            "/vault/accounts",
-            call_args[0][0]
-        )
+        self.assertEqual(call_args[1]["headers"]["X-API-KEY"], api_key)
+        self.assertIn("/vault/accounts", call_args[0][0])
 
     @patch("app.littio.diagon.service.get_secret")
     def test_get_accounts_missing_base_url(self, mock_get_secret):
         """Test getting accounts when base URL is missing."""
+        api_key = fake.password(length=32, special_chars=False)
+
         mock_get_secret.side_effect = lambda key: {
             "DIAGON_BASE_URL": None,
-            "DIAGON_API_KEY": "test-api-key"
+            "DIAGON_API_KEY": api_key
         }.get(key)
 
         with self.assertRaises(ValueError) as context:
             DiagonService.get_accounts()
-        self.assertIn("DIAGON_BASE_URL not found", str(context.exception))
+        self.assertIn("DIAGON_BASE_URL not found in secrets", str(context.exception))
 
     @patch("app.littio.diagon.service.get_secret")
     def test_get_accounts_missing_api_key(self, mock_get_secret):
         """Test getting accounts when API key is missing."""
+        base_url = fake.url().rstrip("/")
+
         mock_get_secret.side_effect = lambda key: {
-            "DIAGON_BASE_URL": "https://api.example.com",
+            "DIAGON_BASE_URL": base_url,
             "DIAGON_API_KEY": None
         }.get(key)
 
         with self.assertRaises(ValueError) as context:
             DiagonService.get_accounts()
-        self.assertIn("DIAGON_API_KEY not found", str(context.exception))
+        self.assertIn("DIAGON_API_KEY not found in secrets", str(context.exception))
 
     @patch("app.littio.diagon.service.get_secret")
     @patch("app.littio.diagon.service.httpx.Client")
     def test_get_accounts_http_error(self, mock_client_class, mock_get_secret):
         """Test getting accounts when API returns HTTP error."""
+        base_url = fake.url().rstrip("/")
+        api_key = fake.password(length=32, special_chars=False)
+
         mock_get_secret.side_effect = lambda key: {
-            "DIAGON_BASE_URL": "https://api.example.com",
-            "DIAGON_API_KEY": "test-api-key"
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": api_key
         }.get(key)
 
+        status_code = fake.random_int(min=400, max=599)
+        error_message = fake.text(max_nb_chars=100)
+
         mock_response = MagicMock()
-        mock_response.status_code = 500
-        mock_response.text = "Internal Server Error"
+        mock_response.status_code = status_code
+        mock_response.text = error_message
 
         mock_http_error = httpx.HTTPStatusError(
             "Server error",
@@ -176,12 +199,16 @@ class TestDiagonService(unittest.TestCase):
     @patch("app.littio.diagon.service.httpx.Client")
     def test_get_accounts_request_error(self, mock_client_class, mock_get_secret):
         """Test getting accounts when request fails."""
+        base_url = fake.url().rstrip("/")
+        api_key = fake.password(length=32, special_chars=False)
+
         mock_get_secret.side_effect = lambda key: {
-            "DIAGON_BASE_URL": "https://api.example.com",
-            "DIAGON_API_KEY": "test-api-key"
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": api_key
         }.get(key)
 
-        mock_request_error = httpx.RequestError("Connection error", request=MagicMock())
+        error_message = fake.text(max_nb_chars=50)
+        mock_request_error = httpx.RequestError(error_message, request=MagicMock())
 
         mock_client = MagicMock()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -196,37 +223,42 @@ class TestDiagonService(unittest.TestCase):
     @patch("app.littio.diagon.service.httpx.Client")
     def test_get_accounts_generic_error(self, mock_client_class, mock_get_secret):
         """Test getting accounts when generic error occurs."""
+        base_url = fake.url().rstrip("/")
+        api_key = fake.password(length=32, special_chars=False)
+
         mock_get_secret.side_effect = lambda key: {
-            "DIAGON_BASE_URL": "https://api.example.com",
-            "DIAGON_API_KEY": "test-api-key"
+            "DIAGON_BASE_URL": base_url,
+            "DIAGON_API_KEY": api_key
         }.get(key)
 
+        error_message = fake.text(max_nb_chars=50)
         mock_client = MagicMock()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=None)
-        mock_client.get.side_effect = Exception("Unexpected error")
+        mock_client.get.side_effect = Exception(error_message)
         mock_client_class.return_value = mock_client
 
         with self.assertRaises(Exception) as context:
             DiagonService.get_accounts()
-        self.assertEqual(str(context.exception), "Unexpected error")
+        self.assertEqual(str(context.exception), error_message)
 
     @patch("app.littio.diagon.service.get_secret")
     def test_build_url(self, mock_get_secret):
         """Test building the complete API URL."""
-        mock_get_secret.return_value = "https://a3a9mlmbsk.execute-api.us-east-1.amazonaws.com/staging"
+        base_url = fake.url().rstrip("/")
+        mock_get_secret.return_value = base_url
         url = DiagonService._build_url()
-        expected_url = "https://a3a9mlmbsk.execute-api.us-east-1.amazonaws.com/staging/vault/accounts"
+        expected_url = f"{base_url}/vault/accounts"
         self.assertEqual(url, expected_url)
 
     @patch("app.littio.diagon.service.get_secret")
     def test_build_headers(self, mock_get_secret):
         """Test building request headers."""
-        mock_get_secret.return_value = "wP9xrNemYuKynUJ4bjsL3cpZFQqThVAk"
+        api_key = fake.password(length=32, special_chars=False)
+        mock_get_secret.return_value = api_key
         headers = DiagonService._build_headers()
-        self.assertEqual(headers["X-API-KEY"], "wP9xrNemYuKynUJ4bjsL3cpZFQqThVAk")
+        self.assertEqual(headers["X-API-KEY"], api_key)
 
 
 if __name__ == "__main__":
     unittest.main()
-
