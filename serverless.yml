@@ -170,4 +170,3 @@ functions:
       - httpApi:
           method: head
           path: /health
-
