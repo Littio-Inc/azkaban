@@ -11,6 +11,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: azkaban-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-local}
       # Firebase credentials are loaded from service-account.json file if available
@@ -27,6 +29,8 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@littio.co}
       FIXED_OTP_CODE: ${FIXED_OTP_CODE:-123456}
+      CASSANDRA_API_URL: ${CASSANDRA_API_URL:-http://host.docker.internal:3000}
+      CASSANDRA_API_KEY: ${CASSANDRA_API_KEY:-}
     ports:
       - "8001:8000"
     networks:

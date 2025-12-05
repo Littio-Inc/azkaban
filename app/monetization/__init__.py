@@ -1,0 +1,1 @@
+"""Monetization service module."""
