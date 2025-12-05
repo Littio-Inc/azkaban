@@ -37,6 +37,6 @@ RUN aws s3 cp s3://api-credentials-development/littio-auth-dev-firebase-adminsdk
 ENTRYPOINT ["serverless", "deploy", "--stage", "staging"]
 
 FROM base AS production
-
+RUN aws s3 cp s3://api-credentials-production/littio-hub-production-firebase.json service-account.json
 ENTRYPOINT ["serverless", "deploy", "--stage", "production"]
 
