@@ -68,6 +68,49 @@ class BasiliscoService:
             raise
 
     @staticmethod
+    def create_transaction(transaction_data: dict[str, Any]) -> dict[str, Any]:
+        """Create a transaction in Basilisco API.
+
+        Args:
+            transaction_data: Dictionary containing transaction data
+
+        Returns:
+            Dictionary containing the created transaction ID
+
+        Raises:
+            httpx.HTTPStatusError: If API request fails
+            ValueError: If API key or base URL is not found
+        """
+        url = BasiliscoService._build_url()
+        headers = BasiliscoService._build_headers()
+        headers["Content-Type"] = "application/json"
+
+        logger.info(
+            "Creating transaction in Basilisco API: %s with data: %s",
+            url,
+            transaction_data
+        )
+
+        try:
+            with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
+                response = client.post(url, headers=headers, json=transaction_data)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as http_error:
+            logger.error(
+                "Basilisco API error: %s - %s",
+                http_error.response.status_code,
+                http_error.response.text
+            )
+            raise
+        except httpx.RequestError as request_error:
+            logger.error("Basilisco API request error: %s", request_error)
+            raise
+        except Exception as exc:
+            logger.error("Unexpected error calling Basilisco API: %s", exc)
+            raise
+
+    @staticmethod
     def _get_base_url() -> str:
         """Get Basilisco base URL from secrets.
 
