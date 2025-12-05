@@ -26,6 +26,7 @@ except ImportError:
 from app.routes.auth_routes import router as auth_router
 from app.routes.basilisco_routes import router as basilisco_router
 from app.routes.diagon_routes import router as diagon_router
+from app.routes.monetization_routes import router as monetization_router
 from app.routes.permissions_routes import router as permissions_router
 from app.routes.roles_routes import router as roles_router
 from app.routes.users_routes import router as users_router
@@ -77,6 +78,7 @@ app.include_router(roles_router, prefix="/v1/roles", tags=["Roles"])
 app.include_router(permissions_router, prefix="/v1/permissions", tags=["Permissions"])
 app.include_router(basilisco_router, prefix="/v1", tags=["Basilisco"])
 app.include_router(diagon_router, prefix="/v1", tags=["Diagon"])
+app.include_router(monetization_router, prefix="/v1", tags=["Monetization"])
 
 # Lambda handler
 http_handler = Mangum(app)
