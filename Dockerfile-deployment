@@ -7,6 +7,7 @@ ARG VPC_SECURITY_GROUP_ID
 ARG SUBNET_ID_ONE
 ARG SUBNET_ID_TWO
 ARG SECRET_MANAGER_AZKABAN_ARN
+ARG CORS_ALLOWED_ORIGINS
 
 ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
 ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
@@ -15,6 +16,7 @@ ENV VPC_SECURITY_GROUP_ID=$VPC_SECURITY_GROUP_ID
 ENV SUBNET_ID_ONE=$SUBNET_ID_ONE
 ENV SUBNET_ID_TWO=$SUBNET_ID_TWO
 ENV SECRET_MANAGER_AZKABAN_ARN=$SECRET_MANAGER_AZKABAN_ARN
+ENV CORS_ALLOWED_ORIGINS=$CORS_ALLOWED_ORIGINS
 
 WORKDIR /app
 COPY . /app
@@ -30,13 +32,13 @@ RUN pip install pipenv==2023.7.4
 RUN pipenv install --deploy --system
 RUN npm install --global serverless
 RUN npm install
-RUN pip install awscli
+RUN pip install awscli pyyaml
 
 FROM base AS staging
+
 RUN aws s3 cp s3://api-credentials-development/littio-auth-dev-firebase-adminsdk-he956-4e5bd2dc84.json service-account.json
-ENTRYPOINT ["serverless", "deploy", "--stage", "staging"]
+ENTRYPOINT serverless deploy --stage staging
 
 FROM base AS production
 RUN aws s3 cp s3://api-credentials-production/littio-hub-production-firebase.json service-account.json
-ENTRYPOINT ["serverless", "deploy", "--stage", "production"]
-
+ENTRYPOINT serverless deploy --stage production

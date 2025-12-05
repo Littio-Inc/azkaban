@@ -32,6 +32,13 @@ jobs:
           echo "ENVIRONMENT=$(echo $secrets | jq -r .ENVIRONMENT)" >> $ENV_FILE
           echo "SECRET_MANAGER_AZKABAN_ARN=$(echo $secrets | jq -r .SECRET_MANAGER_AZKABAN_ARN)" >> $ENV_FILE
           echo "AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }}" >> $ENV_FILE
+          echo "VPC_SECURITY_GROUP_ID=$(echo $secrets | jq -r .VPC_SECURITY_GROUP_ID)" >> $ENV_FILE
+          echo "SUBNET_ID_ONE=$(echo $secrets | jq -r .SUBNET_ID_ONE)" >> $ENV_FILE
+          echo "SUBNET_ID_TWO=$(echo $secrets | jq -r .SUBNET_ID_TWO)" >> $ENV_FILE
+          cors_origins=$(echo $secrets | jq -r .CORS_ALLOWED_ORIGINS // empty)
+          if [[ -n "$cors_origins" && "$cors_origins" != "null" && "$cors_origins" != "" ]]; then
+            echo "CORS_ALLOWED_ORIGINS=$cors_origins" >> $ENV_FILE
+          fi
 
       - name: Deploy functions
         env:
