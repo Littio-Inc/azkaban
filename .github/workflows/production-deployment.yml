@@ -35,7 +35,7 @@ jobs:
           echo "VPC_SECURITY_GROUP_ID=$(echo $secrets | jq -r .VPC_SECURITY_GROUP_ID)" >> $ENV_FILE
           echo "SUBNET_ID_ONE=$(echo $secrets | jq -r .SUBNET_ID_ONE)" >> $ENV_FILE
           echo "SUBNET_ID_TWO=$(echo $secrets | jq -r .SUBNET_ID_TWO)" >> $ENV_FILE
-          cors_origins=$(echo $secrets | jq -r .CORS_ALLOWED_ORIGINS // empty)
+          cors_origins=$(echo $secrets | jq -r .CORS_ALLOWED_ORIGINS)
           if [[ -n "$cors_origins" && "$cors_origins" != "null" && "$cors_origins" != "" ]]; then
             echo "CORS_ALLOWED_ORIGINS=$cors_origins" >> $ENV_FILE
           fi
@@ -52,5 +52,6 @@ jobs:
             --build-arg VPC_SECURITY_GROUP_ID=$(echo $secrets | jq -r .VPC_SECURITY_GROUP_ID) \
             --build-arg SUBNET_ID_ONE=$(echo $secrets | jq -r .SUBNET_ID_ONE) \
             --build-arg SUBNET_ID_TWO=$(echo $secrets | jq -r .SUBNET_ID_TWO) \
-            --build-arg SECRET_MANAGER_AZKABAN_ARN=$(echo $secrets | jq -r .SECRET_MANAGER_AZKABAN_ARN)
+            --build-arg SECRET_MANAGER_AZKABAN_ARN=$(echo $secrets | jq -r .SECRET_MANAGER_AZKABAN_ARN) \
+            --build-arg CORS_ALLOWED_ORIGINS=$(echo $secrets | jq -r .CORS_ALLOWED_ORIGINS)
           docker run --env-file .env deployment
