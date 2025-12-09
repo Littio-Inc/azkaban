@@ -37,6 +37,8 @@ class CreateTransactionRequest(BaseModel):
     st_id: str | None = None
     st_hash: str | None = None
     user_id: str | None = None
+    user_id_to: str | None = None
+    user_id_from: str | None = None
     category: str | None = None
     transfer_id: str | None = None
     actor_id: str | None = None
