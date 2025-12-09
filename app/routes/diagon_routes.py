@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.littio.diagon.service import DiagonService
+from app.common.apis.diagon.service import DiagonService
 from app.middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)

@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
-from app.littio.basilisco.service import BasiliscoService
+from app.common.apis.basilisco.service import BasiliscoService
 from app.middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)

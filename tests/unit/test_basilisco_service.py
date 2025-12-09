@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 
-from app.littio.basilisco.service import BasiliscoService
+from app.common.apis.basilisco.service import BasiliscoService
 
 
 class TestBasiliscoService(unittest.TestCase):
     """Test cases for Basilisco service."""
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_get_base_url_success(self, mock_get_secret):
         """Test getting base URL when secret exists."""
         mock_get_secret.return_value = "https://api.example.com"
@@ -19,7 +19,7 @@ class TestBasiliscoService(unittest.TestCase):
         self.assertEqual(base_url, "https://api.example.com")
         mock_get_secret.assert_called_once_with("BASILISCO_BASE_URL")
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_get_base_url_with_trailing_slash(self, mock_get_secret):
         """Test getting base URL removes trailing slash."""
         mock_get_secret.return_value = "https://api.example.com/"
@@ -27,7 +27,7 @@ class TestBasiliscoService(unittest.TestCase):
         self.assertEqual(base_url, "https://api.example.com")
         mock_get_secret.assert_called_once_with("BASILISCO_BASE_URL")
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_get_base_url_not_found(self, mock_get_secret):
         """Test getting base URL when secret is not found."""
         mock_get_secret.return_value = None
@@ -35,7 +35,7 @@ class TestBasiliscoService(unittest.TestCase):
             BasiliscoService._get_base_url()
         self.assertIn("BASILISCO_BASE_URL not found", str(context.exception))
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_get_api_key_success(self, mock_get_secret):
         """Test getting API key when secret exists."""
         mock_get_secret.return_value = "test-api-key-123"
@@ -43,7 +43,7 @@ class TestBasiliscoService(unittest.TestCase):
         self.assertEqual(api_key, "test-api-key-123")
         mock_get_secret.assert_called_once_with("BASILISCO_API_KEY")
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_get_api_key_not_found(self, mock_get_secret):
         """Test getting API key when secret is not found."""
         mock_get_secret.return_value = None
@@ -51,8 +51,8 @@ class TestBasiliscoService(unittest.TestCase):
             BasiliscoService._get_api_key()
         self.assertIn("BASILISCO_API_KEY not found", str(context.exception))
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_get_transactions_success(self, mock_client_class, mock_get_secret):
         """Test getting transactions successfully."""
         mock_get_secret.side_effect = lambda key: {
@@ -84,8 +84,8 @@ class TestBasiliscoService(unittest.TestCase):
         self.assertIn("page", call_args[1]["params"])
         self.assertIn("limit", call_args[1]["params"])
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_get_transactions_with_provider(self, mock_client_class, mock_get_secret):
         """Test getting transactions with provider filter."""
         mock_get_secret.side_effect = lambda key: {
@@ -110,7 +110,7 @@ class TestBasiliscoService(unittest.TestCase):
         self.assertEqual(call_args[1]["params"]["page"], 2)
         self.assertEqual(call_args[1]["params"]["limit"], 20)
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_get_transactions_missing_base_url(self, mock_get_secret):
         """Test getting transactions when base URL is missing."""
         mock_get_secret.side_effect = lambda key: {
@@ -122,7 +122,7 @@ class TestBasiliscoService(unittest.TestCase):
             BasiliscoService.get_transactions()
         self.assertIn("BASILISCO_BASE_URL not found", str(context.exception))
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_get_transactions_missing_api_key(self, mock_get_secret):
         """Test getting transactions when API key is missing."""
         mock_get_secret.side_effect = lambda key: {
@@ -134,8 +134,8 @@ class TestBasiliscoService(unittest.TestCase):
             BasiliscoService.get_transactions()
         self.assertIn("BASILISCO_API_KEY not found", str(context.exception))
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_get_transactions_http_error(self, mock_client_class, mock_get_secret):
         """Test getting transactions when API returns HTTP error."""
         mock_get_secret.side_effect = lambda key: {
@@ -163,8 +163,8 @@ class TestBasiliscoService(unittest.TestCase):
         with self.assertRaises(httpx.HTTPStatusError):
             BasiliscoService.get_transactions()
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_get_transactions_request_error(self, mock_client_class, mock_get_secret):
         """Test getting transactions when request fails."""
         mock_get_secret.side_effect = lambda key: {
@@ -183,8 +183,8 @@ class TestBasiliscoService(unittest.TestCase):
         with self.assertRaises(httpx.RequestError):
             BasiliscoService.get_transactions()
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_get_transactions_generic_error(self, mock_client_class, mock_get_secret):
         """Test getting transactions when generic error occurs."""
         mock_get_secret.side_effect = lambda key: {
@@ -202,8 +202,8 @@ class TestBasiliscoService(unittest.TestCase):
             BasiliscoService.get_transactions()
         self.assertEqual(str(context.exception), "Unexpected error")
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_create_transaction_success(self, mock_client_class, mock_get_secret):
         """Test creating transaction successfully."""
         mock_get_secret.side_effect = lambda key: {
@@ -250,7 +250,7 @@ class TestBasiliscoService(unittest.TestCase):
         self.assertEqual(call_args[1]["headers"]["Content-Type"], "application/json")
         self.assertEqual(call_args[1]["json"], transaction_data)
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_create_transaction_missing_base_url(self, mock_get_secret):
         """Test creating transaction when base URL is missing."""
         mock_get_secret.side_effect = lambda key: {
@@ -264,7 +264,7 @@ class TestBasiliscoService(unittest.TestCase):
             BasiliscoService.create_transaction(transaction_data)
         self.assertIn("BASILISCO_BASE_URL not found", str(context.exception))
 
-    @patch("app.littio.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.get_secret")
     def test_create_transaction_missing_api_key(self, mock_get_secret):
         """Test creating transaction when API key is missing."""
         mock_get_secret.side_effect = lambda key: {
@@ -278,8 +278,8 @@ class TestBasiliscoService(unittest.TestCase):
             BasiliscoService.create_transaction(transaction_data)
         self.assertIn("BASILISCO_API_KEY not found", str(context.exception))
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_create_transaction_http_error(self, mock_client_class, mock_get_secret):
         """Test creating transaction when API returns HTTP error."""
         mock_get_secret.side_effect = lambda key: {
@@ -309,8 +309,8 @@ class TestBasiliscoService(unittest.TestCase):
         with self.assertRaises(httpx.HTTPStatusError):
             BasiliscoService.create_transaction(transaction_data)
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_create_transaction_request_error(self, mock_client_class, mock_get_secret):
         """Test creating transaction when request fails."""
         mock_get_secret.side_effect = lambda key: {
@@ -331,8 +331,8 @@ class TestBasiliscoService(unittest.TestCase):
         with self.assertRaises(httpx.RequestError):
             BasiliscoService.create_transaction(transaction_data)
 
-    @patch("app.littio.basilisco.service.get_secret")
-    @patch("app.littio.basilisco.service.httpx.Client")
+    @patch("app.common.apis.basilisco.service.get_secret")
+    @patch("app.common.apis.basilisco.service.httpx.Client")
     def test_create_transaction_generic_error(self, mock_client_class, mock_get_secret):
         """Test creating transaction when generic error occurs."""
         mock_get_secret.side_effect = lambda key: {

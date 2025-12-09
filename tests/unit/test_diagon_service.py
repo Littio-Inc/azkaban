@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 from faker import Faker
 
-from app.littio.diagon.service import DiagonService
+from app.common.apis.diagon.service import DiagonService
 
 fake = Faker()
 
@@ -14,7 +14,7 @@ fake = Faker()
 class TestDiagonService(unittest.TestCase):
     """Test cases for Diagon service."""
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_get_base_url_success(self, mock_get_secret):
         """Test getting base URL when secret exists."""
         base_url_value = fake.url().rstrip("/")
@@ -23,7 +23,7 @@ class TestDiagonService(unittest.TestCase):
         self.assertEqual(base_url, base_url_value)
         mock_get_secret.assert_called_once_with("DIAGON_BASE_URL")
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_get_base_url_with_trailing_slash(self, mock_get_secret):
         """Test getting base URL removes trailing slash."""
         base_url_value = fake.url().rstrip("/")
@@ -33,7 +33,7 @@ class TestDiagonService(unittest.TestCase):
         self.assertEqual(base_url, base_url_value)
         mock_get_secret.assert_called_once_with("DIAGON_BASE_URL")
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_get_base_url_not_found(self, mock_get_secret):
         """Test getting base URL when secret is not found."""
         mock_get_secret.return_value = None
@@ -41,7 +41,7 @@ class TestDiagonService(unittest.TestCase):
             DiagonService._get_base_url()
         self.assertIn("DIAGON_BASE_URL not found in secrets", str(context.exception))
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_get_api_key_success(self, mock_get_secret):
         """Test getting API key when secret exists."""
         api_key_value = fake.password(length=32, special_chars=False)
@@ -50,7 +50,7 @@ class TestDiagonService(unittest.TestCase):
         self.assertEqual(api_key, api_key_value)
         mock_get_secret.assert_called_once_with("DIAGON_API_KEY")
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_get_api_key_not_found(self, mock_get_secret):
         """Test getting API key when secret is not found."""
         mock_get_secret.return_value = None
@@ -58,8 +58,8 @@ class TestDiagonService(unittest.TestCase):
             DiagonService._get_api_key()
         self.assertIn("DIAGON_API_KEY not found in secrets", str(context.exception))
 
-    @patch("app.littio.diagon.service.get_secret")
-    @patch("app.littio.diagon.service.httpx.Client")
+    @patch("app.common.apis.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.httpx.Client")
     def test_get_accounts_success(self, mock_client_class, mock_get_secret):
         """Test getting accounts successfully."""
         base_url = fake.url().rstrip("/")
@@ -132,7 +132,7 @@ class TestDiagonService(unittest.TestCase):
         self.assertEqual(call_args[1]["headers"]["X-API-KEY"], api_key)
         self.assertIn("/vault/accounts", call_args[0][0])
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_get_accounts_missing_base_url(self, mock_get_secret):
         """Test getting accounts when base URL is missing."""
         api_key = fake.password(length=32, special_chars=False)
@@ -146,7 +146,7 @@ class TestDiagonService(unittest.TestCase):
             DiagonService.get_accounts()
         self.assertIn("DIAGON_BASE_URL not found in secrets", str(context.exception))
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_get_accounts_missing_api_key(self, mock_get_secret):
         """Test getting accounts when API key is missing."""
         base_url = fake.url().rstrip("/")
@@ -160,8 +160,8 @@ class TestDiagonService(unittest.TestCase):
             DiagonService.get_accounts()
         self.assertIn("DIAGON_API_KEY not found in secrets", str(context.exception))
 
-    @patch("app.littio.diagon.service.get_secret")
-    @patch("app.littio.diagon.service.httpx.Client")
+    @patch("app.common.apis.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.httpx.Client")
     def test_get_accounts_http_error(self, mock_client_class, mock_get_secret):
         """Test getting accounts when API returns HTTP error."""
         base_url = fake.url().rstrip("/")
@@ -195,8 +195,8 @@ class TestDiagonService(unittest.TestCase):
         with self.assertRaises(httpx.HTTPStatusError):
             DiagonService.get_accounts()
 
-    @patch("app.littio.diagon.service.get_secret")
-    @patch("app.littio.diagon.service.httpx.Client")
+    @patch("app.common.apis.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.httpx.Client")
     def test_get_accounts_request_error(self, mock_client_class, mock_get_secret):
         """Test getting accounts when request fails."""
         base_url = fake.url().rstrip("/")
@@ -219,8 +219,8 @@ class TestDiagonService(unittest.TestCase):
         with self.assertRaises(httpx.RequestError):
             DiagonService.get_accounts()
 
-    @patch("app.littio.diagon.service.get_secret")
-    @patch("app.littio.diagon.service.httpx.Client")
+    @patch("app.common.apis.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.httpx.Client")
     def test_get_accounts_generic_error(self, mock_client_class, mock_get_secret):
         """Test getting accounts when generic error occurs."""
         base_url = fake.url().rstrip("/")
@@ -242,7 +242,7 @@ class TestDiagonService(unittest.TestCase):
             DiagonService.get_accounts()
         self.assertEqual(str(context.exception), error_message)
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_build_url(self, mock_get_secret):
         """Test building the complete API URL."""
         base_url = fake.url().rstrip("/")
@@ -251,7 +251,7 @@ class TestDiagonService(unittest.TestCase):
         expected_url = f"{base_url}/vault/accounts"
         self.assertEqual(url, expected_url)
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_build_headers(self, mock_get_secret):
         """Test building request headers."""
         api_key = fake.password(length=32, special_chars=False)
@@ -259,8 +259,8 @@ class TestDiagonService(unittest.TestCase):
         headers = DiagonService._build_headers()
         self.assertEqual(headers["X-API-KEY"], api_key)
 
-    @patch("app.littio.diagon.service.get_secret")
-    @patch("app.littio.diagon.service.httpx.Client")
+    @patch("app.common.apis.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.httpx.Client")
     def test_refresh_balance_success(self, mock_client_class, mock_get_secret):
         """Test refreshing balance successfully."""
         base_url = fake.url().rstrip("/")
@@ -299,7 +299,7 @@ class TestDiagonService(unittest.TestCase):
         expected_url = f"{base_url}/vault/accounts/{account_id}/{asset}/balance"
         self.assertEqual(call_args[0][0], expected_url)
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_refresh_balance_missing_base_url(self, mock_get_secret):
         """Test refreshing balance when base URL is missing."""
         api_key = fake.password(length=32, special_chars=False)
@@ -315,7 +315,7 @@ class TestDiagonService(unittest.TestCase):
             DiagonService.refresh_balance(account_id, asset)
         self.assertIn("DIAGON_BASE_URL not found in secrets", str(context.exception))
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_refresh_balance_missing_api_key(self, mock_get_secret):
         """Test refreshing balance when API key is missing."""
         base_url = fake.url().rstrip("/")
@@ -331,8 +331,8 @@ class TestDiagonService(unittest.TestCase):
             DiagonService.refresh_balance(account_id, asset)
         self.assertIn("DIAGON_API_KEY not found in secrets", str(context.exception))
 
-    @patch("app.littio.diagon.service.get_secret")
-    @patch("app.littio.diagon.service.httpx.Client")
+    @patch("app.common.apis.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.httpx.Client")
     def test_refresh_balance_http_error(self, mock_client_class, mock_get_secret):
         """Test refreshing balance when API returns HTTP error."""
         base_url = fake.url().rstrip("/")
@@ -368,8 +368,8 @@ class TestDiagonService(unittest.TestCase):
         with self.assertRaises(httpx.HTTPStatusError):
             DiagonService.refresh_balance(account_id, asset)
 
-    @patch("app.littio.diagon.service.get_secret")
-    @patch("app.littio.diagon.service.httpx.Client")
+    @patch("app.common.apis.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.httpx.Client")
     def test_refresh_balance_request_error(self, mock_client_class, mock_get_secret):
         """Test refreshing balance when request fails."""
         base_url = fake.url().rstrip("/")
@@ -394,8 +394,8 @@ class TestDiagonService(unittest.TestCase):
         with self.assertRaises(httpx.RequestError):
             DiagonService.refresh_balance(account_id, asset)
 
-    @patch("app.littio.diagon.service.get_secret")
-    @patch("app.littio.diagon.service.httpx.Client")
+    @patch("app.common.apis.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.httpx.Client")
     def test_refresh_balance_generic_error(self, mock_client_class, mock_get_secret):
         """Test refreshing balance when generic error occurs."""
         base_url = fake.url().rstrip("/")
@@ -419,7 +419,7 @@ class TestDiagonService(unittest.TestCase):
             DiagonService.refresh_balance(account_id, asset)
         self.assertEqual(str(context.exception), error_message)
 
-    @patch("app.littio.diagon.service.get_secret")
+    @patch("app.common.apis.diagon.service.get_secret")
     def test_build_refresh_balance_url(self, mock_get_secret):
         """Test building the refresh balance API URL."""
         base_url = fake.url().rstrip("/")
