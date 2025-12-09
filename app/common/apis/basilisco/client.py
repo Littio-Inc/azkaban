@@ -1,6 +1,5 @@
 """Basilisco API client for backoffice transactions."""
 
-from datetime import datetime
 from typing import Any
 
 from app.common.apis.basilisco.agent import BASE_TRANSACTIONS_PATH, BasiliscoAgent
@@ -8,6 +7,10 @@ from app.common.apis.basilisco.dtos import CreateTransactionResponse, Transactio
 
 # Constants
 PATH_SEPARATOR = "/"
+FILTER_KEY_PROVIDER = "provider"
+FILTER_KEY_EXCLUDE_PROVIDER = "exclude_provider"
+FILTER_KEY_DATE_FROM = "date_from"
+FILTER_KEY_DATE_TO = "date_to"
 
 
 class BasiliscoClient:
@@ -25,20 +28,15 @@ class BasiliscoClient:
 
     def get_transactions(
         self,
-        provider: str | None = None,
-        exclude_provider: list[str] | None = None,
-        date_from: datetime | None = None,
-        date_to: datetime | None = None,
+        filters: dict[str, Any] | None = None,
         page: int = 1,
         limit: int = 10,
     ) -> TransactionsResponse:
         """Get transactions from Basilisco API.
 
         Args:
-            provider: Transaction provider filter (e.g., 'fireblocks')
-            exclude_provider: List of providers to exclude
-            date_from: Start date for filtering transactions
-            date_to: End date for filtering transactions
+            filters: Dictionary with optional filters: provider, exclude_provider,
+                    date_from (datetime), date_to (datetime)
             page: Page number (default: 1)
             limit: Number of results per page (default: 10)
 
@@ -52,16 +50,17 @@ class BasiliscoClient:
             "page": page,
             "limit": limit,
         }
-        if provider:
-            query_params["provider"] = provider
-        if exclude_provider:
-            query_params["exclude_provider"] = exclude_provider
-        if date_from:
-            # Convert datetime to ISO format string
-            query_params["date_from"] = date_from.isoformat()
-        if date_to:
-            # Convert datetime to ISO format string
-            query_params["date_to"] = date_to.isoformat()
+        if not filters:
+            response_data = self._agent.get(
+                req_path=BASE_TRANSACTIONS_PATH,
+                query_params=query_params,
+            )
+            return TransactionsResponse(**response_data)
+
+        self._add_filter_to_params(filters, FILTER_KEY_PROVIDER, query_params)
+        self._add_filter_to_params(filters, FILTER_KEY_EXCLUDE_PROVIDER, query_params)
+        self._add_date_filter_to_params(filters, FILTER_KEY_DATE_FROM, query_params)
+        self._add_date_filter_to_params(filters, FILTER_KEY_DATE_TO, query_params)
 
         response_data = self._agent.get(
             req_path=BASE_TRANSACTIONS_PATH,
@@ -90,10 +89,42 @@ class BasiliscoClient:
         # Extract idempotency_key from transaction_data if not provided
         if not idempotency_key and "idempotency_key" in transaction_data:
             idempotency_key = transaction_data.pop("idempotency_key")
-        
+
         response_data = self._agent.post(
             req_path=BASE_TRANSACTIONS_PATH,
             json=transaction_data,
             idempotency_key=idempotency_key,
         )
         return CreateTransactionResponse(**response_data)
+
+    def _add_filter_to_params(
+        self,
+        filters: dict[str, Any],
+        filter_key: str,
+        query_params: dict[str, Any],
+    ) -> None:
+        """Add filter value to query params if present and truthy.
+
+        Args:
+            filters: Dictionary containing filters
+            filter_key: Key to check in filters
+            query_params: Query parameters dict to update
+        """
+        if filter_key in filters and filters[filter_key]:
+            query_params[filter_key] = filters[filter_key]
+
+    def _add_date_filter_to_params(
+        self,
+        filters: dict[str, Any],
+        filter_key: str,
+        query_params: dict[str, Any],
+    ) -> None:
+        """Add date filter value to query params if present and truthy.
+
+        Args:
+            filters: Dictionary containing filters
+            filter_key: Key to check in filters
+            query_params: Query parameters dict to update
+        """
+        if filter_key in filters and filters[filter_key]:
+            query_params[filter_key] = filters[filter_key].isoformat()

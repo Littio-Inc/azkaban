@@ -67,10 +67,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertEqual(data["count"], 1)
         self.assertEqual(len(data["transactions"]), 1)
         mock_client.get_transactions.assert_called_once_with(
-            provider="fireblocks",
-            exclude_provider=None,
-            date_from=None,
-            date_to=None,
+            filters={"provider": "fireblocks", "exclude_provider": None, "date_from": None, "date_to": None},
             page=1,
             limit=10
         )
@@ -95,10 +92,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         mock_client.get_transactions.assert_called_once_with(
-            provider=None,
-            exclude_provider=None,
-            date_from=None,
-            date_to=None,
+            filters={"provider": None, "exclude_provider": None, "date_from": None, "date_to": None},
             page=2,
             limit=20
         )
@@ -151,10 +145,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         mock_client.get_transactions.assert_called_once_with(
-            provider=None,
-            exclude_provider=None,
-            date_from=None,
-            date_to=None,
+            filters={"provider": None, "exclude_provider": None, "date_from": None, "date_to": None},
             page=1,
             limit=10
         )

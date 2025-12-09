@@ -109,13 +109,13 @@ class BasiliscoAgent(RESTfulAPIAgent):
             BasiliscoAPIClientError: If API call fails
         """
         self._authenticate()
-        
+
         # Add idempotency-key header if provided
         # Combine with existing session headers
         headers = dict(self._session.headers) if hasattr(self._session, 'headers') else {}
         if idempotency_key:
             headers["idempotency-key"] = idempotency_key
-        
+
         params = MakeRequestParams(
             method="POST",
             path=req_path,

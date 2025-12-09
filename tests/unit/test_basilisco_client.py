@@ -27,7 +27,7 @@ class TestBasiliscoClient(unittest.TestCase):
         mock_agent.get.return_value = mock_response_data
 
         client = BasiliscoClient()
-        result = client.get_transactions(provider="fireblocks", page=1, limit=10)
+        result = client.get_transactions(filters={"provider": "fireblocks"}, page=1, limit=10)
 
         self.assertIsInstance(result, TransactionsResponse)
         self.assertEqual(result.count, 1)
