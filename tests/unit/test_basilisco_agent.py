@@ -72,7 +72,7 @@ class TestBasiliscoAgent(unittest.TestCase):
         agent.make_request = mock_rest_agent.make_request
         # Also mock update_headers on the actual agent instance
         agent.update_headers = mock_rest_agent.update_headers
-        result = agent.get("/v2/backoffice/transactions", {"page": 1})
+        result = agent.get("/v1/backoffice/transactions", {"page": 1})
 
         self.assertEqual(result, {"transactions": [], "count": 0})
         mock_rest_agent.update_headers.assert_called_once_with({
@@ -99,7 +99,7 @@ class TestBasiliscoAgent(unittest.TestCase):
         agent.make_request = mock_rest_agent.make_request
         # Also mock update_headers on the actual agent instance
         agent.update_headers = mock_rest_agent.update_headers
-        result = agent.post("/v2/backoffice/transactions", {"type": "withdrawal"})
+        result = agent.post("/v1/backoffice/transactions", {"type": "withdrawal"})
 
         self.assertEqual(result, {"id": "test-id"})
         mock_rest_agent.update_headers.assert_called_once_with({
@@ -107,6 +107,47 @@ class TestBasiliscoAgent(unittest.TestCase):
             "Content-Type": "application/json"
         })
         mock_rest_agent.make_request.assert_called_once()
+        self.assertTrue(agent._api_key_is_valid)
+
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_post_with_idempotency_key_in_body(self, mock_get_secret, mock_rest_agent_class):
+        """Test POST request with idempotency_key sent in body."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "BASILISCO_BASE_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        mock_response = MagicMock(spec=Response)
+        mock_response.json.return_value = {"id": "test-id"}
+        mock_rest_agent.make_request.return_value = mock_response
+
+        agent = BasiliscoAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+        # Also mock update_headers on the actual agent instance
+        agent.update_headers = mock_rest_agent.update_headers
+
+        transaction_data = {"type": "withdrawal", "amount": "100"}
+        idempotency_key = "test-idempotency-key-123"
+        result = agent.post(
+            "/v1/backoffice/transactions",
+            json=transaction_data,
+            idempotency_key=idempotency_key
+        )
+
+        self.assertEqual(result, {"id": "test-id"})
+        mock_rest_agent.make_request.assert_called_once()
+        
+        # Verify that idempotency_key is in the body, not in headers
+        call_args = mock_rest_agent.make_request.call_args
+        params = call_args[0][0]  # First positional argument is MakeRequestParams
+        self.assertIn("idempotency_key", params.body)
+        self.assertEqual(params.body["idempotency_key"], idempotency_key)
+        self.assertEqual(params.body["type"], "withdrawal")
+        self.assertEqual(params.body["amount"], "100")
+        # Verify headers don't contain idempotency-key
+        if params.headers:
+            self.assertNotIn("idempotency-key", params.headers)
         self.assertTrue(agent._api_key_is_valid)
 
     @patch(PATCH_REST_AGENT)
@@ -158,7 +199,7 @@ class TestBasiliscoAgent(unittest.TestCase):
 
         agent = BasiliscoAgent()
         with self.assertRaises(BasiliscoAPIClientError):
-            agent.get("/v2/backoffice/transactions")
+            agent.get("/v1/backoffice/transactions")
 
     @patch(PATCH_REST_AGENT)
     @patch(PATCH_SECRETS)
@@ -173,7 +214,7 @@ class TestBasiliscoAgent(unittest.TestCase):
 
         agent = BasiliscoAgent()
         with self.assertRaises(BasiliscoAPIClientError):
-            agent.post("/v2/backoffice/transactions", {})
+            agent.post("/v1/backoffice/transactions", {})
 
     @patch(PATCH_REST_AGENT)
     @patch(PATCH_SECRETS)
@@ -187,7 +228,7 @@ class TestBasiliscoAgent(unittest.TestCase):
 
         agent = BasiliscoAgent()
         with self.assertRaises(BasiliscoAPIClientError):
-            agent.get("/v2/backoffice/transactions")
+            agent.get("/v1/backoffice/transactions")
 
 
 if __name__ == "__main__":

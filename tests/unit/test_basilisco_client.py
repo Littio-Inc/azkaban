@@ -33,7 +33,7 @@ class TestBasiliscoClient(unittest.TestCase):
         self.assertEqual(result.count, 1)
         self.assertEqual(len(result.transactions), 1)
         mock_agent.get.assert_called_once_with(
-            req_path="/v2/backoffice/transactions",
+            req_path="/v1/backoffice/transactions",
             query_params={"page": 1, "limit": 10, "provider": "fireblocks"}
         )
 
@@ -57,7 +57,7 @@ class TestBasiliscoClient(unittest.TestCase):
         self.assertIsInstance(result, TransactionsResponse)
         self.assertEqual(result.count, 0)
         mock_agent.get.assert_called_once_with(
-            req_path="/v2/backoffice/transactions",
+            req_path="/v1/backoffice/transactions",
             query_params={"page": 1, "limit": 10}
         )
 
@@ -83,7 +83,7 @@ class TestBasiliscoClient(unittest.TestCase):
         self.assertIsInstance(result, CreateTransactionResponse)
         self.assertEqual(result.id, transaction_id)
         mock_agent.post.assert_called_once_with(
-            req_path="/v2/backoffice/transactions",
+            req_path="/v1/backoffice/transactions",
             json=transaction_data,
             idempotency_key=None
         )

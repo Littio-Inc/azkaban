@@ -20,7 +20,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.app = FastAPI()
-        self.app.include_router(router, prefix="/v2")
+        self.app.include_router(router, prefix="/v1")
         self.client = TestClient(self.app)
         self.mock_current_user = {
             "firebase_uid": "user-uid-123",
@@ -60,7 +60,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
-        response = self.client.get("/v2/backoffice/transactions?provider=fireblocks&page=1&limit=10")
+        response = self.client.get("/v1/backoffice/transactions?provider=fireblocks&page=1&limit=10")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -88,7 +88,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
-        response = self.client.get("/v2/backoffice/transactions?page=2&limit=20")
+        response = self.client.get("/v1/backoffice/transactions?page=2&limit=20")
 
         self.assertEqual(response.status_code, 200)
         mock_client.get_transactions.assert_called_once_with(
@@ -106,7 +106,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.side_effect = BasiliscoAPIClientError("BASILISCO_API_KEY not found in secrets")
 
-        response = self.client.get("/v2/backoffice/transactions")
+        response = self.client.get("/v1/backoffice/transactions")
 
         self.assertEqual(response.status_code, 502)
         data = response.json()
@@ -120,7 +120,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.side_effect = Exception("Network error")
 
-        response = self.client.get("/v2/backoffice/transactions")
+        response = self.client.get("/v1/backoffice/transactions")
 
         self.assertEqual(response.status_code, 502)
         data = response.json()
@@ -141,7 +141,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
-        response = self.client.get("/v2/backoffice/transactions")
+        response = self.client.get("/v1/backoffice/transactions")
 
         self.assertEqual(response.status_code, 200)
         mock_client.get_transactions.assert_called_once_with(
@@ -184,7 +184,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         }
 
         response = self.client.post(
-            "/v2/backoffice/transactions",
+            "/v1/backoffice/transactions",
             json=transaction_data,
             headers={"idempotency-key": idempotency_key}
         )
@@ -220,7 +220,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         }
 
         response = self.client.post(
-            "/v2/backoffice/transactions",
+            "/v1/backoffice/transactions",
             json=transaction_data
         )
 
@@ -245,7 +245,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         }
 
         response = self.client.post(
-            "/v2/backoffice/transactions",
+            "/v1/backoffice/transactions",
             json=transaction_data
         )
 
@@ -274,7 +274,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         }
 
         response = self.client.post(
-            "/v2/backoffice/transactions",
+            "/v1/backoffice/transactions",
             json=transaction_data
         )
 
