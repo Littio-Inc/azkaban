@@ -46,6 +46,7 @@ class CreateTransactionRequest(BaseModel):
     method: str | None = None
     status: str | None = None
     origin_provider: str | None = None
+    idempotency_key: str | None = None
 
 
 def _get_transactions_data(
@@ -203,28 +204,30 @@ def create_backoffice_transaction(
     )
 
     # Filter out None values to only send fields that were provided
-    request_dict = request.model_dump()
     transaction_data = {
         field_name: field_value
-        for field_name, field_value in request_dict.items()
-        if field_value is not None
+        for field_name, field_value in request.model_dump().items()
+        if field_value is not None and field_name != "idempotency_key"
     }
+
+    # Use idempotency_key from header if provided, otherwise from body
+    final_idempotency_key = idempotency_key or request.idempotency_key
 
     try:
         transaction_response = _create_transaction_data(
             transaction_data,
-            idempotency_key=idempotency_key,
+            idempotency_key=final_idempotency_key,
         )
     except BasiliscoAPIClientError as api_error:
-        logger.error("Basilisco API error: %s", api_error)
+        logger.error("Basilisco API error: %s", api_error, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Error creating transaction in Basilisco service"
+            detail=f"Error creating transaction in Basilisco service: {str(api_error)}"
         )
     except Exception as exc:
-        logger.error("Error creating transaction in Basilisco: %s", exc)
+        logger.error("Error creating transaction in Basilisco: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Error creating transaction in Basilisco service"
+            detail=f"Error creating transaction in Basilisco service: {str(exc)}"
         )
     return transaction_response
