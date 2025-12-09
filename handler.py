@@ -76,7 +76,7 @@ app.include_router(auth_router, prefix="/v1/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/v1/users", tags=["Users"])
 app.include_router(roles_router, prefix="/v1/roles", tags=["Roles"])
 app.include_router(permissions_router, prefix="/v1/permissions", tags=["Permissions"])
-app.include_router(basilisco_router, prefix="/v1", tags=["Basilisco"])
+app.include_router(basilisco_router, prefix="/v2", tags=["Basilisco"])
 app.include_router(diagon_router, prefix="/v1", tags=["Diagon"])
 app.include_router(monetization_router, prefix="/v1", tags=["Monetization"])
 

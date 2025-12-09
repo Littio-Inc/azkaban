@@ -4,10 +4,11 @@ from datetime import datetime
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
 
 from app.common.apis.basilisco.client import BasiliscoClient
+from app.common.apis.basilisco.dtos import TransactionFilters
 from app.common.apis.basilisco.errors import BasiliscoAPIClientError
 from app.middleware.auth import get_current_user
 
@@ -42,22 +43,20 @@ class CreateTransactionRequest(BaseModel):
     source_id: str | None = None
     reason: str | None = None
     occurred_at: str | None = None
-    idempotency_key: str | None = None
     method: str | None = None
     status: str | None = None
     origin_provider: str | None = None
 
 
 def _get_transactions_data(
-    filters: dict,
+    filters: TransactionFilters,
     page: int,
     limit: int,
 ) -> dict:
     """Get transactions data from Basilisco client.
 
     Args:
-        filters: Dictionary with optional filters: provider, exclude_provider,
-                date_from, date_to
+        filters: Transaction filters (provider, exclude_provider, date_from, date_to)
         page: Page number
         limit: Number of results per page
 
@@ -68,15 +67,20 @@ def _get_transactions_data(
         BasiliscoAPIClientError: If API call fails
     """
     client = BasiliscoClient()
-    response = client.get_transactions(filters=filters, page=page, limit=limit)
+    filters_dict = filters.model_dump(exclude_none=True)
+    response = client.get_transactions(filters=filters_dict, page=page, limit=limit)
     return response.model_dump()
 
 
-def _create_transaction_data(transaction_data: dict) -> dict:
+def _create_transaction_data(
+    transaction_data: dict,
+    idempotency_key: str | None = None,
+) -> dict:
     """Create transaction data using Basilisco client.
 
     Args:
         transaction_data: Transaction data dictionary
+        idempotency_key: Optional idempotency key for the request
 
     Returns:
         Created transaction data dictionary
@@ -84,15 +88,12 @@ def _create_transaction_data(transaction_data: dict) -> dict:
     Raises:
         BasiliscoAPIClientError: If API call fails
     """
-    body_data = {
-        key: value
-        for key, value in transaction_data.items()
-        if key != "idempotency_key"
-    }
-    idempotency_key = transaction_data.get("idempotency_key")
-    return BasiliscoClient().create_transaction(
-        body_data, idempotency_key=idempotency_key
-    ).model_dump()
+    client = BasiliscoClient()
+    response = client.create_transaction(
+        transaction_data,
+        idempotency_key=idempotency_key,
+    )
+    return response.model_dump()
 
 
 @router.get("/backoffice/transactions")
@@ -134,12 +135,12 @@ def get_backoffice_transactions(  # noqa: WPS211
     Raises:
         HTTPException: If API call fails or user is not authenticated
     """
-    filters = {
-        "provider": provider,
-        "exclude_provider": exclude_provider,
-        "date_from": date_from,
-        "date_to": date_to,
-    }
+    filters = TransactionFilters(
+        provider=provider,
+        exclude_provider=exclude_provider,
+        date_from=date_from,
+        date_to=date_to,
+    )
     logger.info(
         (
             "Getting backoffice transactions - provider: %s, exclude_provider: %s, "
@@ -172,6 +173,11 @@ def get_backoffice_transactions(  # noqa: WPS211
 @router.post("/backoffice/transactions")
 def create_backoffice_transaction(
     request: CreateTransactionRequest,
+    idempotency_key: str | None = Header(  # noqa: WPS404
+        None,
+        alias="idempotency-key",
+        description="Idempotency key for the request"
+    ),
     current_user: dict = Depends(get_current_user)  # noqa: WPS404
 ):
     """Create a backoffice transaction in Basilisco.
@@ -180,6 +186,7 @@ def create_backoffice_transaction(
 
     Args:
         request: Transaction data to create
+        idempotency_key: Optional idempotency key header (idempotency-key)
         current_user: Current authenticated user
 
     Returns:
@@ -204,7 +211,10 @@ def create_backoffice_transaction(
     }
 
     try:
-        transaction_response = _create_transaction_data(transaction_data)
+        transaction_response = _create_transaction_data(
+            transaction_data,
+            idempotency_key=idempotency_key,
+        )
     except BasiliscoAPIClientError as api_error:
         logger.error("Basilisco API error: %s", api_error)
         raise HTTPException(

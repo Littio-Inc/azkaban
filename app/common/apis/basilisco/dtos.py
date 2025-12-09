@@ -1,5 +1,8 @@
 """DTOs for Basilisco API operations."""
 
+from datetime import datetime
+from typing import List
+
 from pydantic import BaseModel, Field
 
 
@@ -44,3 +47,12 @@ class CreateTransactionResponse(BaseModel):
     """Response model for creating a transaction."""
 
     id: str = Field(..., description="Created transaction ID")
+
+
+class TransactionFilters(BaseModel):
+    """Filters for querying transactions."""
+
+    provider: str | None = Field(None, description="Filter by provider (e.g., 'fireblocks')")
+    exclude_provider: List[str] | None = Field(None, description="List of providers to exclude")
+    date_from: datetime | None = Field(None, description="Start date for filtering transactions (ISO format)")
+    date_to: datetime | None = Field(None, description="End date for filtering transactions (ISO format)")

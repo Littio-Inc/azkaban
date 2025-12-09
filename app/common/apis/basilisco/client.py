@@ -79,6 +79,7 @@ class BasiliscoClient:
             transaction_data: Dictionary containing transaction data
             idempotency_key: Optional idempotency key for the request.
                            If not provided, will try to extract from transaction_data
+                           as a fallback (for backward compatibility)
 
         Returns:
             CreateTransactionResponse containing the created transaction ID
@@ -86,7 +87,7 @@ class BasiliscoClient:
         Raises:
             BasiliscoAPIClientError: If API call fails
         """
-        # Extract idempotency_key from transaction_data if not provided
+        # Extract idempotency_key from transaction_data if not provided (fallback)
         if not idempotency_key and "idempotency_key" in transaction_data:
             idempotency_key = transaction_data.pop("idempotency_key")
 

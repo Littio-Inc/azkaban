@@ -67,7 +67,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertEqual(data["count"], 1)
         self.assertEqual(len(data["transactions"]), 1)
         mock_client.get_transactions.assert_called_once_with(
-            filters={"provider": "fireblocks", "exclude_provider": None, "date_from": None, "date_to": None},
+            filters={"provider": "fireblocks"},
             page=1,
             limit=10
         )
@@ -92,7 +92,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         mock_client.get_transactions.assert_called_once_with(
-            filters={"provider": None, "exclude_provider": None, "date_from": None, "date_to": None},
+            filters={},
             page=2,
             limit=20
         )
@@ -145,7 +145,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         mock_client.get_transactions.assert_called_once_with(
-            filters={"provider": None, "exclude_provider": None, "date_from": None, "date_to": None},
+            filters={},
             page=1,
             limit=10
         )
@@ -163,6 +163,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.create_transaction.return_value = CreateTransactionResponse(**mock_transaction_response)
 
+        idempotency_key = fake.uuid4()
         transaction_data = {
             "created_at": fake.date_time().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "type": fake.random_element(elements=("withdrawal", "deposit", "transfer")),
@@ -180,12 +181,12 @@ class TestBasiliscoRoutes(unittest.TestCase):
             "source_id": fake.uuid4(),
             "reason": fake.sentence(),
             "occurred_at": fake.date_time().strftime("%Y-%m-%d %H:%M:%S.%f"),
-            "idempotency_key": fake.uuid4()
         }
 
         response = self.client.post(
             "/v2/backoffice/transactions",
-            json=transaction_data
+            json=transaction_data,
+            headers={"idempotency-key": idempotency_key}
         )
 
         self.assertEqual(response.status_code, 200)
@@ -193,12 +194,11 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertEqual(data["id"], transaction_id)
         mock_client.create_transaction.assert_called_once()
         call_args = mock_client.create_transaction.call_args
-        # Verify body data (without idempotency_key)
+        # Verify body data matches transaction_data
         body_data = call_args[0][0]
-        expected_body = {k: v for k, v in transaction_data.items() if k != "idempotency_key"}
-        self.assertEqual(body_data, expected_body)
-        # Verify idempotency_key is passed as separate parameter
-        self.assertEqual(call_args[1]["idempotency_key"], transaction_data["idempotency_key"])
+        self.assertEqual(body_data, transaction_data)
+        # Verify idempotency_key is passed as separate parameter from header
+        self.assertEqual(call_args[1]["idempotency_key"], idempotency_key)
 
     @patch("app.routes.basilisco_routes.BasiliscoClient")
     def test_create_backoffice_transaction_configuration_error(self, mock_client_class):

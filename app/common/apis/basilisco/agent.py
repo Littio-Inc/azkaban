@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Optional
 
+from requests import Response
 from requests.exceptions import HTTPError
 
 from app.common.apis.basilisco.errors import BasiliscoAPIClientError
@@ -139,7 +140,7 @@ class BasiliscoAgent(RESTfulAPIAgent):
         self._api_key_is_valid = True
         logger.info("Basilisco API headers set successfully")
 
-    def _make_request_with_error_handling(self, params: MakeRequestParams):
+    def _make_request_with_error_handling(self, params: MakeRequestParams) -> Response:
         """Make request and handle errors.
 
         Args:
@@ -154,6 +155,6 @@ class BasiliscoAgent(RESTfulAPIAgent):
         try:
             return self.make_request(params)
         except HTTPError as http_exception:
-            raise BasiliscoAPIClientError(f"Error calling Basilisco API: {http_exception}") from http_exception
-        except Exception as error:  # noqa: BLE001
-            raise BasiliscoAPIClientError(f"Unexpected error calling Basilisco API: {str(error)}") from error
+            raise BasiliscoAPIClientError("Error calling Basilisco API") from http_exception
+        except Exception as error:
+            raise BasiliscoAPIClientError("Unexpected error calling Basilisco API") from error
