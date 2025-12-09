@@ -144,6 +144,10 @@ functions:
           path: /v1/backoffice/transactions
           authorizer: azkaban-authorizer
       - httpApi:
+          method: POST
+          path: /v1/backoffice/transactions
+          authorizer: azkaban-authorizer
+      - httpApi:
           method: GET
           path: /v1/vault/accounts
           authorizer: azkaban-authorizer
