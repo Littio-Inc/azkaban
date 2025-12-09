@@ -20,7 +20,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.app = FastAPI()
-        self.app.include_router(router, prefix="/v1")
+        self.app.include_router(router, prefix="/v2")
         self.client = TestClient(self.app)
         self.mock_current_user = {
             "firebase_uid": "user-uid-123",
@@ -60,7 +60,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
-        response = self.client.get("/v1/backoffice/transactions?provider=fireblocks&page=1&limit=10")
+        response = self.client.get("/v2/backoffice/transactions?provider=fireblocks&page=1&limit=10")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -68,6 +68,9 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertEqual(len(data["transactions"]), 1)
         mock_client.get_transactions.assert_called_once_with(
             provider="fireblocks",
+            exclude_provider=None,
+            date_from=None,
+            date_to=None,
             page=1,
             limit=10
         )
@@ -88,11 +91,14 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
-        response = self.client.get("/v1/backoffice/transactions?page=2&limit=20")
+        response = self.client.get("/v2/backoffice/transactions?page=2&limit=20")
 
         self.assertEqual(response.status_code, 200)
         mock_client.get_transactions.assert_called_once_with(
             provider=None,
+            exclude_provider=None,
+            date_from=None,
+            date_to=None,
             page=2,
             limit=20
         )
@@ -106,7 +112,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.side_effect = BasiliscoAPIClientError("BASILISCO_API_KEY not found in secrets")
 
-        response = self.client.get("/v1/backoffice/transactions")
+        response = self.client.get("/v2/backoffice/transactions")
 
         self.assertEqual(response.status_code, 502)
         data = response.json()
@@ -120,7 +126,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.side_effect = Exception("Network error")
 
-        response = self.client.get("/v1/backoffice/transactions")
+        response = self.client.get("/v2/backoffice/transactions")
 
         self.assertEqual(response.status_code, 502)
         data = response.json()
@@ -141,11 +147,14 @@ class TestBasiliscoRoutes(unittest.TestCase):
         mock_client = mock_client_class.return_value
         mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
-        response = self.client.get("/v1/backoffice/transactions")
+        response = self.client.get("/v2/backoffice/transactions")
 
         self.assertEqual(response.status_code, 200)
         mock_client.get_transactions.assert_called_once_with(
             provider=None,
+            exclude_provider=None,
+            date_from=None,
+            date_to=None,
             page=1,
             limit=10
         )
@@ -184,7 +193,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         }
 
         response = self.client.post(
-            "/v1/backoffice/transactions",
+            "/v2/backoffice/transactions",
             json=transaction_data
         )
 
@@ -193,7 +202,12 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertEqual(data["id"], transaction_id)
         mock_client.create_transaction.assert_called_once()
         call_args = mock_client.create_transaction.call_args
-        self.assertEqual(call_args[0][0], transaction_data)
+        # Verify body data (without idempotency_key)
+        body_data = call_args[0][0]
+        expected_body = {k: v for k, v in transaction_data.items() if k != "idempotency_key"}
+        self.assertEqual(body_data, expected_body)
+        # Verify idempotency_key is passed as separate parameter
+        self.assertEqual(call_args[1]["idempotency_key"], transaction_data["idempotency_key"])
 
     @patch("app.routes.basilisco_routes.BasiliscoClient")
     def test_create_backoffice_transaction_configuration_error(self, mock_client_class):
@@ -215,7 +229,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         }
 
         response = self.client.post(
-            "/v1/backoffice/transactions",
+            "/v2/backoffice/transactions",
             json=transaction_data
         )
 
@@ -240,7 +254,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         }
 
         response = self.client.post(
-            "/v1/backoffice/transactions",
+            "/v2/backoffice/transactions",
             json=transaction_data
         )
 
@@ -269,7 +283,7 @@ class TestBasiliscoRoutes(unittest.TestCase):
         }
 
         response = self.client.post(
-            "/v1/backoffice/transactions",
+            "/v2/backoffice/transactions",
             json=transaction_data
         )
 

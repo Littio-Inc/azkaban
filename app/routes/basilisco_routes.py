@@ -1,6 +1,8 @@
 """Basilisco routes for backoffice transactions."""
 
+from datetime import datetime
 import logging
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -41,13 +43,26 @@ class CreateTransactionRequest(BaseModel):
     reason: str | None = None
     occurred_at: str | None = None
     idempotency_key: str | None = None
+    method: str | None = None
+    status: str | None = None
+    origin_provider: str | None = None
 
 
-def _get_transactions_data(provider: str | None, page: int, limit: int) -> dict:
+def _get_transactions_data(
+    provider: str | None,
+    exclude_provider: list[str] | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+    page: int,
+    limit: int,
+) -> dict:
     """Get transactions data from Basilisco client.
 
     Args:
         provider: Optional provider filter
+        exclude_provider: Optional list of providers to exclude
+        date_from: Optional start date for filtering
+        date_to: Optional end date for filtering
         page: Page number
         limit: Number of results per page
 
@@ -58,7 +73,14 @@ def _get_transactions_data(provider: str | None, page: int, limit: int) -> dict:
         BasiliscoAPIClientError: If API call fails
     """
     client = BasiliscoClient()
-    response = client.get_transactions(provider=provider, page=page, limit=limit)
+    response = client.get_transactions(
+        provider=provider,
+        exclude_provider=exclude_provider,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        limit=limit,
+    )
     return response.model_dump()
 
 
@@ -75,13 +97,20 @@ def _create_transaction_data(transaction_data: dict) -> dict:
         BasiliscoAPIClientError: If API call fails
     """
     client = BasiliscoClient()
-    response = client.create_transaction(transaction_data)
+    # Extract idempotency_key from transaction_data to pass as header
+    idempotency_key = transaction_data.get("idempotency_key")
+    # Create a copy without idempotency_key for the body
+    body_data = {k: v for k, v in transaction_data.items() if k != "idempotency_key"}
+    response = client.create_transaction(body_data, idempotency_key=idempotency_key)
     return response.model_dump()
 
 
 @router.get("/backoffice/transactions")
 def get_backoffice_transactions(
     provider: str | None = Query(None, description="Filter by provider (e.g., 'fireblocks')"),  # noqa: WPS404
+    exclude_provider: List[str] | None = Query(None, description="List of providers to exclude"),  # noqa: WPS404
+    date_from: datetime | None = Query(None, description="Start date for filtering transactions (ISO format)"),  # noqa: WPS404
+    date_to: datetime | None = Query(None, description="End date for filtering transactions (ISO format)"),  # noqa: WPS404
     page: int = Query(DEFAULT_PAGE, ge=MIN_PAGE, description="Page number"),  # noqa: WPS404
     limit: int = Query(  # noqa: WPS404
         DEFAULT_LIMIT, ge=MIN_LIMIT, le=MAX_LIMIT, description="Number of results per page"
@@ -94,6 +123,9 @@ def get_backoffice_transactions(
 
     Args:
         provider: Optional provider filter (e.g., 'fireblocks')
+        exclude_provider: Optional list of providers to exclude
+        date_from: Optional start date for filtering transactions (ISO format)
+        date_to: Optional end date for filtering transactions (ISO format)
         page: Page number (default: 1, minimum: 1)
         limit: Number of results per page (default: 10, minimum: 1, maximum: 100)
         current_user: Current authenticated user
@@ -105,14 +137,24 @@ def get_backoffice_transactions(
         HTTPException: If API call fails or user is not authenticated
     """
     logger.info(
-        "Getting backoffice transactions - provider: %s, page: %s, limit: %s",
+        "Getting backoffice transactions - provider: %s, exclude_provider: %s, date_from: %s, date_to: %s, page: %s, limit: %s",
         provider,
+        exclude_provider,
+        date_from,
+        date_to,
         page,
         limit
     )
 
     try:
-        transactions_data = _get_transactions_data(provider, page, limit)
+        transactions_data = _get_transactions_data(
+            provider=provider,
+            exclude_provider=exclude_provider,
+            date_from=date_from,
+            date_to=date_to,
+            page=page,
+            limit=limit,
+        )
     except BasiliscoAPIClientError as api_error:
         logger.error("Basilisco API error: %s", api_error)
         raise HTTPException(

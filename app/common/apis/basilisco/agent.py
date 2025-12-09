@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Constants
 BASILISCO_API_KEY = "BASILISCO_API_KEY"
 BASILISCO_BASE_URL = "BASILISCO_BASE_URL"
-BASE_TRANSACTIONS_PATH = "/v1/backoffice/transactions"
+BASE_TRANSACTIONS_PATH = "/v2/backoffice/transactions"
 
 
 class BasiliscoAgent(RESTfulAPIAgent):
@@ -71,7 +71,7 @@ class BasiliscoAgent(RESTfulAPIAgent):
         """Make a GET request to the Basilisco API.
 
         Args:
-            req_path: Request path (e.g., "/v1/backoffice/transactions")
+            req_path: Request path (e.g., "/v2/backoffice/transactions")
             query_params: Optional query parameters
 
         Returns:
@@ -93,12 +93,14 @@ class BasiliscoAgent(RESTfulAPIAgent):
         self,
         req_path: str,
         json: Optional[dict[str, Any]] = None,
+        idempotency_key: Optional[str] = None,
     ) -> dict[str, Any]:
         """Make a POST request to the Basilisco API.
 
         Args:
-            req_path: Request path (e.g., "/v1/backoffice/transactions")
+            req_path: Request path (e.g., "/v2/backoffice/transactions")
             json: Optional JSON body
+            idempotency_key: Optional idempotency key for the request
 
         Returns:
             Response data as dictionary
@@ -107,10 +109,18 @@ class BasiliscoAgent(RESTfulAPIAgent):
             BasiliscoAPIClientError: If API call fails
         """
         self._authenticate()
+        
+        # Add idempotency-key header if provided
+        # Combine with existing session headers
+        headers = dict(self._session.headers) if hasattr(self._session, 'headers') else {}
+        if idempotency_key:
+            headers["idempotency-key"] = idempotency_key
+        
         params = MakeRequestParams(
             method="POST",
             path=req_path,
             body=json,
+            headers=headers,
         )
         response = self._make_request_with_error_handling(params)
         return response.json()

@@ -141,11 +141,11 @@ functions:
           path: /v1/{proxy+}
       - httpApi:
           method: GET
-          path: /v1/backoffice/transactions
+          path: /v2/backoffice/transactions
           authorizer: azkaban-authorizer
       - httpApi:
           method: POST
-          path: /v1/backoffice/transactions
+          path: /v2/backoffice/transactions
           authorizer: azkaban-authorizer
       - httpApi:
           method: GET

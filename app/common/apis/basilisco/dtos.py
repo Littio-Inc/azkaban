@@ -25,6 +25,9 @@ class TransactionResponse(BaseModel):
     reason: str | None = Field(None, description="Transaction reason")
     occurred_at: str | None = Field(None, description="Occurrence timestamp")
     idempotency_key: str | None = Field(None, description="Idempotency key")
+    method: str | None = Field(None, description="Transaction method (e.g., 'BLOCKCHAIN')")
+    status: str | None = Field(None, description="Transaction status (e.g., 'COMPLETED')")
+    origin_provider: str | None = Field(None, description="Origin provider (e.g., 'bridge')")
 
 
 class TransactionsResponse(BaseModel):

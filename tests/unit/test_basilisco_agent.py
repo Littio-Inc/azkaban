@@ -72,7 +72,7 @@ class TestBasiliscoAgent(unittest.TestCase):
         agent.make_request = mock_rest_agent.make_request
         # Also mock update_headers on the actual agent instance
         agent.update_headers = mock_rest_agent.update_headers
-        result = agent.get("/v1/backoffice/transactions", {"page": 1})
+        result = agent.get("/v2/backoffice/transactions", {"page": 1})
 
         self.assertEqual(result, {"transactions": [], "count": 0})
         mock_rest_agent.update_headers.assert_called_once_with({
@@ -99,7 +99,7 @@ class TestBasiliscoAgent(unittest.TestCase):
         agent.make_request = mock_rest_agent.make_request
         # Also mock update_headers on the actual agent instance
         agent.update_headers = mock_rest_agent.update_headers
-        result = agent.post("/v1/backoffice/transactions", {"type": "withdrawal"})
+        result = agent.post("/v2/backoffice/transactions", {"type": "withdrawal"})
 
         self.assertEqual(result, {"id": "test-id"})
         mock_rest_agent.update_headers.assert_called_once_with({
@@ -158,7 +158,7 @@ class TestBasiliscoAgent(unittest.TestCase):
 
         agent = BasiliscoAgent()
         with self.assertRaises(BasiliscoAPIClientError):
-            agent.get("/v1/backoffice/transactions")
+            agent.get("/v2/backoffice/transactions")
 
     @patch(PATCH_REST_AGENT)
     @patch(PATCH_SECRETS)
@@ -173,7 +173,7 @@ class TestBasiliscoAgent(unittest.TestCase):
 
         agent = BasiliscoAgent()
         with self.assertRaises(BasiliscoAPIClientError):
-            agent.post("/v1/backoffice/transactions", {})
+            agent.post("/v2/backoffice/transactions", {})
 
     @patch(PATCH_REST_AGENT)
     @patch(PATCH_SECRETS)
@@ -187,7 +187,7 @@ class TestBasiliscoAgent(unittest.TestCase):
 
         agent = BasiliscoAgent()
         with self.assertRaises(BasiliscoAPIClientError):
-            agent.get("/v1/backoffice/transactions")
+            agent.get("/v2/backoffice/transactions")
 
 
 if __name__ == "__main__":
