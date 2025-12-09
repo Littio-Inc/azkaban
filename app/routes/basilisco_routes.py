@@ -5,7 +5,8 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
-from app.common.apis.basilisco.service import BasiliscoService
+from app.common.apis.basilisco.client import BasiliscoClient
+from app.common.apis.basilisco.errors import BasiliscoAPIClientError
 from app.middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class CreateTransactionRequest(BaseModel):
 
 
 def _get_transactions_data(provider: str | None, page: int, limit: int) -> dict:
-    """Get transactions data from Basilisco service.
+    """Get transactions data from Basilisco client.
 
     Args:
         provider: Optional provider filter
@@ -54,18 +55,15 @@ def _get_transactions_data(provider: str | None, page: int, limit: int) -> dict:
         Transactions data dictionary
 
     Raises:
-        ValueError: If configuration error occurs
-        Exception: If other error occurs
+        BasiliscoAPIClientError: If API call fails
     """
-    return BasiliscoService.get_transactions(
-        provider=provider,
-        page=page,
-        limit=limit
-    )
+    client = BasiliscoClient()
+    response = client.get_transactions(provider=provider, page=page, limit=limit)
+    return response.model_dump()
 
 
 def _create_transaction_data(transaction_data: dict) -> dict:
-    """Create transaction data using Basilisco service.
+    """Create transaction data using Basilisco client.
 
     Args:
         transaction_data: Transaction data dictionary
@@ -74,10 +72,11 @@ def _create_transaction_data(transaction_data: dict) -> dict:
         Created transaction data dictionary
 
     Raises:
-        ValueError: If configuration error occurs
-        Exception: If other error occurs
+        BasiliscoAPIClientError: If API call fails
     """
-    return BasiliscoService.create_transaction(transaction_data)
+    client = BasiliscoClient()
+    response = client.create_transaction(transaction_data)
+    return response.model_dump()
 
 
 @router.get("/backoffice/transactions")
@@ -114,11 +113,11 @@ def get_backoffice_transactions(
 
     try:
         transactions_data = _get_transactions_data(provider, page, limit)
-    except ValueError as config_error:
-        logger.error("Configuration error: %s", config_error)
+    except BasiliscoAPIClientError as api_error:
+        logger.error("Basilisco API error: %s", api_error)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Basilisco service configuration error"
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error retrieving transactions from Basilisco service"
         )
     except Exception as exc:
         logger.error("Error getting transactions from Basilisco: %s", exc)
@@ -165,11 +164,11 @@ def create_backoffice_transaction(
 
     try:
         transaction_response = _create_transaction_data(transaction_data)
-    except ValueError as config_error:
-        logger.error("Configuration error: %s", config_error)
+    except BasiliscoAPIClientError as api_error:
+        logger.error("Basilisco API error: %s", api_error)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Basilisco service configuration error"
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error creating transaction in Basilisco service"
         )
     except Exception as exc:
         logger.error("Error creating transaction in Basilisco: %s", exc)

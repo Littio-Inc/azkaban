@@ -6,6 +6,7 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.common.apis.diagon.dtos import AccountResponse, RefreshBalanceResponse
 from app.middleware.auth import get_current_user
 from app.routes.diagon_routes import router
 
@@ -30,7 +31,7 @@ class TestDiagonRoutes(unittest.TestCase):
         # Clear dependency overrides after each test
         self.app.dependency_overrides.clear()
 
-    @patch("app.routes.diagon_routes.DiagonService")
+    @patch("app.routes.diagon_routes.DiagonClient")
     def test_get_vault_accounts_success(self, mock_diagon_service):
         """Test getting vault accounts successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
@@ -65,7 +66,8 @@ class TestDiagonRoutes(unittest.TestCase):
             }
         ]
 
-        mock_diagon_service.get_accounts.return_value = mock_accounts_data
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_accounts.return_value = [AccountResponse(**account) for account in mock_accounts_data]
 
         response = self.client.get("/v1/vault/accounts")
 
@@ -77,27 +79,16 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertEqual(data[1]["id"], "5")
         self.assertEqual(data[1]["name"], "Littio-Test")
         self.assertEqual(len(data[1]["assets"]), 1)
-        mock_diagon_service.get_accounts.assert_called_once()
+        mock_client.get_accounts.assert_called_once()
 
-    @patch("app.routes.diagon_routes.DiagonService")
+    @patch("app.routes.diagon_routes.DiagonClient")
     def test_get_vault_accounts_configuration_error(self, mock_diagon_service):
         """Test getting accounts when configuration error occurs."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
-        mock_diagon_service.get_accounts.side_effect = ValueError("DIAGON_API_KEY not found in secrets")
-
-        response = self.client.get("/v1/vault/accounts")
-
-        self.assertEqual(response.status_code, 500)
-        data = response.json()
-        self.assertIn("configuration error", data["detail"].lower())
-
-    @patch("app.routes.diagon_routes.DiagonService")
-    def test_get_vault_accounts_generic_error(self, mock_diagon_service):
-        """Test getting accounts when generic error occurs."""
-        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-
-        mock_diagon_service.get_accounts.side_effect = Exception("Network error")
+        from app.common.apis.diagon.errors import DiagonAPIClientError
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_accounts.side_effect = DiagonAPIClientError("DIAGON_API_KEY not found in secrets")
 
         response = self.client.get("/v1/vault/accounts")
 
@@ -105,21 +96,36 @@ class TestDiagonRoutes(unittest.TestCase):
         data = response.json()
         self.assertIn("error retrieving accounts", data["detail"].lower())
 
-    @patch("app.routes.diagon_routes.DiagonService")
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_get_vault_accounts_generic_error(self, mock_diagon_service):
+        """Test getting accounts when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_accounts.side_effect = Exception("Network error")
+
+        response = self.client.get("/v1/vault/accounts")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error retrieving accounts", data["detail"].lower())
+
+    @patch("app.routes.diagon_routes.DiagonClient")
     def test_get_vault_accounts_empty_list(self, mock_diagon_service):
         """Test getting accounts when empty list is returned."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
-        mock_diagon_service.get_accounts.return_value = []
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_accounts.return_value = []
 
         response = self.client.get("/v1/vault/accounts")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data, [])
-        mock_diagon_service.get_accounts.assert_called_once()
+        mock_client.get_accounts.assert_called_once()
 
-    @patch("app.routes.diagon_routes.DiagonService")
+    @patch("app.routes.diagon_routes.DiagonClient")
     def test_refresh_balance_success(self, mock_diagon_service):
         """Test refreshing balance successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
@@ -131,7 +137,8 @@ class TestDiagonRoutes(unittest.TestCase):
             "idempotencyKey": "1a70d158-f499-427d-9337-745be60113b1"
         }
 
-        mock_diagon_service.refresh_balance.return_value = mock_response_data
+        mock_client = mock_diagon_service.return_value
+        mock_client.refresh_balance.return_value = RefreshBalanceResponse(**mock_response_data)
 
         response = self.client.post(f"/v1/vault/accounts/{account_id}/{asset}/balance")
 
@@ -139,31 +146,34 @@ class TestDiagonRoutes(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["message"], "Balance refresh initiated successfully")
         self.assertEqual(data["idempotencyKey"], "1a70d158-f499-427d-9337-745be60113b1")
-        mock_diagon_service.refresh_balance.assert_called_once_with(account_id, asset)
+        mock_client.refresh_balance.assert_called_once_with(account_id, asset)
 
-    @patch("app.routes.diagon_routes.DiagonService")
+    @patch("app.routes.diagon_routes.DiagonClient")
     def test_refresh_balance_configuration_error(self, mock_diagon_service):
         """Test refreshing balance when configuration error occurs."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         account_id = "5"
         asset = "USDC_AMOY_POLYGON_TEST_7WWV"
-        mock_diagon_service.refresh_balance.side_effect = ValueError("DIAGON_API_KEY not found in secrets")
+        from app.common.apis.diagon.errors import DiagonAPIClientError
+        mock_client = mock_diagon_service.return_value
+        mock_client.refresh_balance.side_effect = DiagonAPIClientError("DIAGON_API_KEY not found in secrets")
 
         response = self.client.post(f"/v1/vault/accounts/{account_id}/{asset}/balance")
 
-        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, 502)
         data = response.json()
-        self.assertIn("configuration error", data["detail"].lower())
+        self.assertIn("error refreshing balance", data["detail"].lower())
 
-    @patch("app.routes.diagon_routes.DiagonService")
+    @patch("app.routes.diagon_routes.DiagonClient")
     def test_refresh_balance_generic_error(self, mock_diagon_service):
         """Test refreshing balance when generic error occurs."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         account_id = "5"
         asset = "USDC_AMOY_POLYGON_TEST_7WWV"
-        mock_diagon_service.refresh_balance.side_effect = Exception("Network error")
+        mock_client = mock_diagon_service.return_value
+        mock_client.refresh_balance.side_effect = Exception("Network error")
 
         response = self.client.post(f"/v1/vault/accounts/{account_id}/{asset}/balance")
 

@@ -18,6 +18,7 @@ uvicorn = {extras = ["standard"], version = "*"}
 pyotp = "*"
 qrcode = {extras = ["pil"], version = "*"}
 httpx = "*"
+requests = "*"
 
 [dev-packages]
 wemake-python-styleguide = "*"

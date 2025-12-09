@@ -4,7 +4,8 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.common.apis.diagon.service import DiagonService
+from app.common.apis.diagon.client import DiagonClient
+from app.common.apis.diagon.errors import DiagonAPIClientError
 from app.middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -13,16 +14,17 @@ router = APIRouter()
 
 
 def _get_accounts_data() -> list[dict]:
-    """Get accounts data from Diagon service.
+    """Get accounts data from Diagon client.
 
     Returns:
         List of accounts data dictionaries
 
     Raises:
-        ValueError: If configuration error occurs
-        Exception: If other error occurs
+        DiagonAPIClientError: If API call fails
     """
-    return DiagonService.get_accounts()
+    client = DiagonClient()
+    accounts = client.get_accounts()
+    return [account.model_dump() for account in accounts]
 
 
 @router.get("/vault/accounts")
@@ -46,11 +48,11 @@ def get_vault_accounts(
 
     try:
         accounts_data = _get_accounts_data()
-    except ValueError as config_error:
-        logger.error("Configuration error: %s", config_error)
+    except DiagonAPIClientError as api_error:
+        logger.error("Diagon API error: %s", api_error)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Diagon service configuration error"
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error retrieving accounts from Diagon service"
         )
     except Exception as exc:
         logger.error("Error getting accounts from Diagon: %s", exc)
@@ -62,7 +64,7 @@ def get_vault_accounts(
 
 
 def _refresh_balance_data(account_id: str, asset: str) -> dict:
-    """Refresh balance data from Diagon service.
+    """Refresh balance data from Diagon client.
 
     Args:
         account_id: Account ID
@@ -72,10 +74,11 @@ def _refresh_balance_data(account_id: str, asset: str) -> dict:
         Dictionary with refresh balance response
 
     Raises:
-        ValueError: If configuration error occurs
-        Exception: If other error occurs
+        DiagonAPIClientError: If API call fails
     """
-    return DiagonService.refresh_balance(account_id, asset)
+    client = DiagonClient()
+    response = client.refresh_balance(account_id, asset)
+    return response.model_dump()
 
 
 @router.post("/vault/accounts/{account_id}/{asset}/balance")
@@ -103,11 +106,11 @@ def refresh_balance(
 
     try:
         refresh_data = _refresh_balance_data(account_id, asset)
-    except ValueError as config_error:
-        logger.error("Configuration error: %s", config_error)
+    except DiagonAPIClientError as api_error:
+        logger.error("Diagon API error: %s", api_error)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Diagon service configuration error"
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error refreshing balance from Diagon service"
         )
     except Exception as exc:
         logger.error("Error refreshing balance from Diagon: %s", exc)

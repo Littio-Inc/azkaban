@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from faker import Faker
 
+from app.common.apis.basilisco.dtos import CreateTransactionResponse, TransactionsResponse
 from app.middleware.auth import get_current_user
 from app.routes.basilisco_routes import router
 
@@ -33,8 +34,8 @@ class TestBasiliscoRoutes(unittest.TestCase):
         # Clear dependency overrides after each test
         self.app.dependency_overrides.clear()
 
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_get_backoffice_transactions_success(self, mock_basilisco_service):
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_get_backoffice_transactions_success(self, mock_client_class):
         """Test getting backoffice transactions successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
@@ -56,7 +57,8 @@ class TestBasiliscoRoutes(unittest.TestCase):
             "limit": 10,
         }
 
-        mock_basilisco_service.get_transactions.return_value = mock_transactions_data
+        mock_client = mock_client_class.return_value
+        mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
         response = self.client.get("/v1/backoffice/transactions?provider=fireblocks&page=1&limit=10")
 
@@ -64,14 +66,14 @@ class TestBasiliscoRoutes(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["count"], 1)
         self.assertEqual(len(data["transactions"]), 1)
-        mock_basilisco_service.get_transactions.assert_called_once_with(
+        mock_client.get_transactions.assert_called_once_with(
             provider="fireblocks",
             page=1,
             limit=10
         )
 
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_get_backoffice_transactions_without_provider(self, mock_basilisco_service):
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_get_backoffice_transactions_without_provider(self, mock_client_class):
         """Test getting transactions without provider filter."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
@@ -83,36 +85,26 @@ class TestBasiliscoRoutes(unittest.TestCase):
             "limit": 10,
         }
 
-        mock_basilisco_service.get_transactions.return_value = mock_transactions_data
+        mock_client = mock_client_class.return_value
+        mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
         response = self.client.get("/v1/backoffice/transactions?page=2&limit=20")
 
         self.assertEqual(response.status_code, 200)
-        mock_basilisco_service.get_transactions.assert_called_once_with(
+        mock_client.get_transactions.assert_called_once_with(
             provider=None,
             page=2,
             limit=20
         )
 
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_get_backoffice_transactions_configuration_error(self, mock_basilisco_service):
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_get_backoffice_transactions_configuration_error(self, mock_client_class):
         """Test getting transactions when configuration error occurs."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
-        mock_basilisco_service.get_transactions.side_effect = ValueError("BASILISCO_API_KEY not found in secrets")
-
-        response = self.client.get("/v1/backoffice/transactions")
-
-        self.assertEqual(response.status_code, 500)
-        data = response.json()
-        self.assertIn("configuration error", data["detail"].lower())
-
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_get_backoffice_transactions_generic_error(self, mock_basilisco_service):
-        """Test getting transactions when generic error occurs."""
-        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-
-        mock_basilisco_service.get_transactions.side_effect = Exception("Network error")
+        from app.common.apis.basilisco.errors import BasiliscoAPIClientError
+        mock_client = mock_client_class.return_value
+        mock_client.get_transactions.side_effect = BasiliscoAPIClientError("BASILISCO_API_KEY not found in secrets")
 
         response = self.client.get("/v1/backoffice/transactions")
 
@@ -120,8 +112,22 @@ class TestBasiliscoRoutes(unittest.TestCase):
         data = response.json()
         self.assertIn("error retrieving transactions", data["detail"].lower())
 
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_get_backoffice_transactions_default_params(self, mock_basilisco_service):
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_get_backoffice_transactions_generic_error(self, mock_client_class):
+        """Test getting transactions when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_client = mock_client_class.return_value
+        mock_client.get_transactions.side_effect = Exception("Network error")
+
+        response = self.client.get("/v1/backoffice/transactions")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error retrieving transactions", data["detail"].lower())
+
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_get_backoffice_transactions_default_params(self, mock_client_class):
         """Test getting transactions with default parameters."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
@@ -132,19 +138,20 @@ class TestBasiliscoRoutes(unittest.TestCase):
             "limit": 10,
         }
 
-        mock_basilisco_service.get_transactions.return_value = mock_transactions_data
+        mock_client = mock_client_class.return_value
+        mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
 
         response = self.client.get("/v1/backoffice/transactions")
 
         self.assertEqual(response.status_code, 200)
-        mock_basilisco_service.get_transactions.assert_called_once_with(
+        mock_client.get_transactions.assert_called_once_with(
             provider=None,
             page=1,
             limit=10
         )
 
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_create_backoffice_transaction_success(self, mock_basilisco_service):
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_create_backoffice_transaction_success(self, mock_client_class):
         """Test creating backoffice transaction successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
@@ -153,7 +160,8 @@ class TestBasiliscoRoutes(unittest.TestCase):
             "id": transaction_id
         }
 
-        mock_basilisco_service.create_transaction.return_value = mock_transaction_response
+        mock_client = mock_client_class.return_value
+        mock_client.create_transaction.return_value = CreateTransactionResponse(**mock_transaction_response)
 
         transaction_data = {
             "created_at": fake.date_time().strftime("%Y-%m-%d %H:%M:%S.%f"),
@@ -183,42 +191,20 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["id"], transaction_id)
-        mock_basilisco_service.create_transaction.assert_called_once()
-        call_args = mock_basilisco_service.create_transaction.call_args
+        mock_client.create_transaction.assert_called_once()
+        call_args = mock_client.create_transaction.call_args
         self.assertEqual(call_args[0][0], transaction_data)
 
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_create_backoffice_transaction_configuration_error(self, mock_basilisco_service):
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_create_backoffice_transaction_configuration_error(self, mock_client_class):
         """Test creating transaction when configuration error occurs."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
-        mock_basilisco_service.create_transaction.side_effect = ValueError(
+        from app.common.apis.basilisco.errors import BasiliscoAPIClientError
+        mock_client = mock_client_class.return_value
+        mock_client.create_transaction.side_effect = BasiliscoAPIClientError(
             "BASILISCO_API_KEY not found in secrets"
         )
-
-        transaction_data = {
-            "type": fake.random_element(elements=("withdrawal", "deposit")),
-            "provider": fake.random_element(elements=("kira", "fireblocks")),
-            "amount": str(fake.pydecimal(left_digits=2, right_digits=2, positive=True)),
-            "currency": fake.currency_code(),
-            "user_id": fake.uuid4(),
-        }
-
-        response = self.client.post(
-            "/v1/backoffice/transactions",
-            json=transaction_data
-        )
-
-        self.assertEqual(response.status_code, 500)
-        data = response.json()
-        self.assertIn("configuration error", data["detail"].lower())
-
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_create_backoffice_transaction_generic_error(self, mock_basilisco_service):
-        """Test creating transaction when generic error occurs."""
-        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-
-        mock_basilisco_service.create_transaction.side_effect = Exception("Network error")
 
         transaction_data = {
             "type": fake.random_element(elements=("withdrawal", "deposit")),
@@ -237,8 +223,33 @@ class TestBasiliscoRoutes(unittest.TestCase):
         data = response.json()
         self.assertIn("error creating transaction", data["detail"].lower())
 
-    @patch("app.routes.basilisco_routes.BasiliscoService")
-    def test_create_backoffice_transaction_with_minimal_data(self, mock_basilisco_service):
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_create_backoffice_transaction_generic_error(self, mock_client_class):
+        """Test creating transaction when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_client = mock_client_class.return_value
+        mock_client.create_transaction.side_effect = Exception("Network error")
+
+        transaction_data = {
+            "type": fake.random_element(elements=("withdrawal", "deposit")),
+            "provider": fake.random_element(elements=("kira", "fireblocks")),
+            "amount": str(fake.pydecimal(left_digits=2, right_digits=2, positive=True)),
+            "currency": fake.currency_code(),
+            "user_id": fake.uuid4(),
+        }
+
+        response = self.client.post(
+            "/v1/backoffice/transactions",
+            json=transaction_data
+        )
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error creating transaction", data["detail"].lower())
+
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_create_backoffice_transaction_with_minimal_data(self, mock_client_class):
         """Test creating transaction with only required/minimal fields."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
@@ -247,7 +258,8 @@ class TestBasiliscoRoutes(unittest.TestCase):
             "id": transaction_id
         }
 
-        mock_basilisco_service.create_transaction.return_value = mock_transaction_response
+        mock_client = mock_client_class.return_value
+        mock_client.create_transaction.return_value = CreateTransactionResponse(**mock_transaction_response)
 
         # Only send a few fields to test optional fields
         transaction_data = {
@@ -264,8 +276,8 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["id"], transaction_id)
-        mock_basilisco_service.create_transaction.assert_called_once()
-        call_args = mock_basilisco_service.create_transaction.call_args
+        mock_client.create_transaction.assert_called_once()
+        call_args = mock_client.create_transaction.call_args
         # Verify only the sent fields are passed (None values filtered out)
         sent_data = call_args[0][0]
         self.assertEqual(sent_data, transaction_data)
