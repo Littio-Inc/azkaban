@@ -1,5 +1,7 @@
 """DTOs for Diagon API operations."""
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -15,7 +17,7 @@ class AssetResponse(BaseModel):
     frozen: str = Field(..., description="Frozen amount")
     staked: str = Field(..., description="Staked amount")
     blockHeight: str = Field(..., description="Block height", alias="blockHeight")
-    blockHash: str = Field(..., description="Block hash", alias="blockHash")
+    blockHash: Optional[str] = Field(None, description="Block hash", alias="blockHash")
 
     class Config:
         """Pydantic configuration."""
