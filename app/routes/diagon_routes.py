@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.common.apis.diagon.client import DiagonClient
+from app.common.apis.diagon.dtos import EstimateFeeRequest
 from app.common.apis.diagon.errors import DiagonAPIClientError
 from app.middleware.auth import get_current_user
 
@@ -119,3 +120,63 @@ def refresh_balance(
             detail="Error refreshing balance from Diagon service"
         )
     return refresh_data
+
+
+def _estimate_fee_data(request: EstimateFeeRequest) -> dict:
+    """Estimate fee data from Diagon client.
+
+    Args:
+        request: EstimateFeeRequest with operation, source, destination, assetId, and amount
+
+    Returns:
+        Dictionary with fee estimate response
+
+    Raises:
+        DiagonAPIClientError: If API call fails
+    """
+    client = DiagonClient()
+    response = client.estimate_fee(request)
+    return response.model_dump()
+
+
+@router.post("/vault/transactions/estimate-fee")
+def estimate_fee(
+    request: EstimateFeeRequest,
+    current_user: dict = Depends(get_current_user)  # noqa: WPS404
+):
+    """Estimate transaction fee from Diagon.
+
+    This endpoint requires authentication and proxies requests to Diagon API.
+
+    Args:
+        request: EstimateFeeRequest with operation, source, destination, assetId, and amount
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Response with fee estimates for low, medium, and high priority
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(
+        "Estimating fee for operation %s, asset %s, amount %s from Diagon",
+        request.operation,
+        request.assetId,
+        request.amount
+    )
+
+    try:
+        fee_data = _estimate_fee_data(request)
+    except DiagonAPIClientError as api_error:
+        logger.error("Diagon API error: %s", api_error)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error estimating fee from Diagon service"
+        )
+    except Exception as exc:
+        logger.error("Error estimating fee from Diagon: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error estimating fee from Diagon service"
+        )
+    return fee_data

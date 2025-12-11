@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 DIAGON_API_KEY = "DIAGON_API_KEY"
 DIAGON_BASE_URL = "DIAGON_BASE_URL"
 BASE_ACCOUNTS_PATH = "/vault/accounts"
+BASE_TRANSACTIONS_PATH = "/vault/transactions"
 
 
 class DiagonAgent(RESTfulAPIAgent):

@@ -1,7 +1,7 @@
 """Diagon API client for vault accounts."""
 
-from app.common.apis.diagon.agent import BASE_ACCOUNTS_PATH, DiagonAgent
-from app.common.apis.diagon.dtos import AccountResponse, RefreshBalanceResponse
+from app.common.apis.diagon.agent import BASE_ACCOUNTS_PATH, BASE_TRANSACTIONS_PATH, DiagonAgent
+from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, RefreshBalanceResponse
 
 # Constants
 PATH_SEPARATOR = "/"
@@ -52,3 +52,20 @@ class DiagonClient:
         req_path = f"{BASE_ACCOUNTS_PATH}{PATH_SEPARATOR}{account_id}{PATH_SEPARATOR}{asset}/balance"
         response_data = self._agent.post(req_path=req_path)
         return RefreshBalanceResponse(**response_data)
+
+    def estimate_fee(self, request: EstimateFeeRequest) -> EstimateFeeResponse:
+        """Estimate transaction fee.
+
+        Args:
+            request: EstimateFeeRequest containing operation, source, destination, assetId, and amount
+
+        Returns:
+            EstimateFeeResponse containing fee estimates for low, medium, and high priority
+
+        Raises:
+            DiagonAPIClientError: If API call fails
+        """
+        req_path = f"{BASE_TRANSACTIONS_PATH}/estimate-fee"
+        request_dict = request.model_dump(by_alias=True)
+        response_data = self._agent.post(req_path=req_path, json=request_dict)
+        return EstimateFeeResponse(**response_data)

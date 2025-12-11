@@ -6,7 +6,7 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.common.apis.diagon.dtos import AccountResponse, RefreshBalanceResponse
+from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, RefreshBalanceResponse
 from app.middleware.auth import get_current_user
 from app.routes.diagon_routes import router
 
@@ -180,6 +180,130 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 502)
         data = response.json()
         self.assertIn("error refreshing balance", data["detail"].lower())
+
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_estimate_fee_success(self, mock_diagon_service):
+        """Test estimating fee successfully."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_response_data = {
+            "low": {
+                "networkFee": "0.001432725180253028",
+                "gasPrice": "26.276",
+                "gasLimit": "54526",
+                "baseFee": "0.000000063",
+                "priorityFee": "26.276",
+                "l1Fee": "0",
+                "maxFeePerGasDelta": "0.000000015"
+            },
+            "medium": {
+                "networkFee": "0.001589651008253028",
+                "gasPrice": "29.154",
+                "gasLimit": "54526",
+                "baseFee": "0.000000063",
+                "priorityFee": "29.154",
+                "l1Fee": "0",
+                "maxFeePerGasDelta": "0.000000015"
+            },
+            "high": {
+                "networkFee": "0.001746522310253028",
+                "gasPrice": "32.032",
+                "gasLimit": "54526",
+                "baseFee": "0.000000063",
+                "priorityFee": "32.031",
+                "l1Fee": "0",
+                "maxFeePerGasDelta": "0.000000015"
+            }
+        }
+
+        mock_client = mock_diagon_service.return_value
+        mock_client.estimate_fee.return_value = EstimateFeeResponse(**mock_response_data)
+
+        request_data = {
+            "operation": "TRANSFER",
+            "source": {
+                "type": "VAULT_ACCOUNT",
+                "id": "5"
+            },
+            "destination": {
+                "type": "VAULT_ACCOUNT",
+                "id": "3"
+            },
+            "assetId": "USDC_AMOY_POLYGON_TEST_7WWV",
+            "amount": "1"
+        }
+
+        response = self.client.post("/v1/vault/transactions/estimate-fee", json=request_data)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["low"]["networkFee"], "0.001432725180253028")
+        self.assertEqual(data["medium"]["gasPrice"], "29.154")
+        self.assertEqual(data["high"]["priorityFee"], "32.031")
+        mock_client.estimate_fee.assert_called_once()
+        call_args = mock_client.estimate_fee.call_args
+        request_obj = call_args[0][0]
+        self.assertIsInstance(request_obj, EstimateFeeRequest)
+        self.assertEqual(request_obj.operation, "TRANSFER")
+        self.assertEqual(request_obj.assetId, "USDC_AMOY_POLYGON_TEST_7WWV")
+        self.assertEqual(request_obj.amount, "1")
+
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_estimate_fee_configuration_error(self, mock_diagon_service):
+        """Test estimating fee when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.apis.diagon.errors import DiagonAPIClientError
+        mock_client = mock_diagon_service.return_value
+        mock_client.estimate_fee.side_effect = DiagonAPIClientError("DIAGON_API_KEY not found in secrets")
+
+        request_data = {
+            "operation": "TRANSFER",
+            "source": {
+                "type": "VAULT_ACCOUNT",
+                "id": "5"
+            },
+            "destination": {
+                "type": "VAULT_ACCOUNT",
+                "id": "3"
+            },
+            "assetId": "USDC_AMOY_POLYGON_TEST_7WWV",
+            "amount": "1"
+        }
+
+        response = self.client.post("/v1/vault/transactions/estimate-fee", json=request_data)
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error estimating fee", data["detail"].lower())
+
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_estimate_fee_generic_error(self, mock_diagon_service):
+        """Test estimating fee when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_client = mock_diagon_service.return_value
+        mock_client.estimate_fee.side_effect = Exception("Network error")
+
+        request_data = {
+            "operation": "TRANSFER",
+            "source": {
+                "type": "VAULT_ACCOUNT",
+                "id": "5"
+            },
+            "destination": {
+                "type": "VAULT_ACCOUNT",
+                "id": "3"
+            },
+            "assetId": "USDC_AMOY_POLYGON_TEST_7WWV",
+            "amount": "1"
+        }
+
+        response = self.client.post("/v1/vault/transactions/estimate-fee", json=request_data)
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error estimating fee", data["detail"].lower())
 
 
 if __name__ == "__main__":
