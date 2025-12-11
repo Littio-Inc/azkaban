@@ -3,6 +3,13 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+from tests.fixtures import (
+    create_test_quote_response,
+    QUOTE_ID_TEST,
+    TEST_TIMESTAMP,
+    TEST_TIMESTAMP_UTC,
+)
+
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
     PayoutCreateRequest,
@@ -23,7 +30,6 @@ TOKEN_USDC = "USDC"
 USER_ID_TEST = "user123"
 WALLET_ID_TEST = "wallet123"
 RECIPIENT_ID_TEST = "rec123"
-QUOTE_ID_TEST = "quote123"
 API_ERROR_MSG = "API error"
 UNEXPECTED_ERROR_MSG = "Unexpected error"
 PATCH_PATH = "app.monetization.service.CassandraClient"
@@ -48,8 +54,8 @@ class TestMonetizationService(unittest.TestCase):
             fixed_fee=0,
             pct_fee=0,
             status="active",
-            expiration_ts="2024-01-01T00:00:00",
-            expiration_ts_utc="2024-01-01T00:00:00Z",
+            expiration_ts=TEST_TIMESTAMP,
+            expiration_ts_utc=TEST_TIMESTAMP_UTC,
         )
         mock_client.get_quote.return_value = expected_quote
 
@@ -148,7 +154,7 @@ class TestMonetizationService(unittest.TestCase):
             quote_currency=CURRENCY_COP,
             amount=100.0,
             quote_id=QUOTE_ID_TEST,
-            quote={"quote_id": QUOTE_ID_TEST},
+            quote=create_test_quote_response(),
             token=TOKEN_USDC,
         )
         expected_response = PayoutResponse(
@@ -161,8 +167,8 @@ class TestMonetizationService(unittest.TestCase):
             to_amount="1000.0",
             to_currency=CURRENCY_COP,
             status="pending",
-            created_at="2024-01-01T00:00:00",
-            updated_at="2024-01-01T00:00:00",
+            created_at=TEST_TIMESTAMP,
+            updated_at=TEST_TIMESTAMP,
         )
         mock_client.create_payout.return_value = expected_response
 
@@ -184,7 +190,7 @@ class TestMonetizationService(unittest.TestCase):
             quote_currency=CURRENCY_COP,
             amount=100.0,
             quote_id=QUOTE_ID_TEST,
-            quote={"quote_id": QUOTE_ID_TEST},
+            quote=create_test_quote_response(),
             token=TOKEN_USDC,
         )
         mock_client.create_payout.side_effect = CassandraAPIClientError(API_ERROR_MSG)
@@ -242,7 +248,7 @@ class TestMonetizationService(unittest.TestCase):
             quote_currency=CURRENCY_COP,
             amount=100.0,
             quote_id=QUOTE_ID_TEST,
-            quote={"quote_id": QUOTE_ID_TEST},
+            quote=create_test_quote_response(),
             token=TOKEN_USDC,
         )
         mock_client.create_payout.side_effect = ValueError(UNEXPECTED_ERROR_MSG)

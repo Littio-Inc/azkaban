@@ -84,7 +84,7 @@ class PayoutCreateRequest(BaseModel):
     quote_currency: str = Field(..., description="Currency code to be quoted according to ISO-4217")
     amount: Decimal = Field(..., description="Amount to be quoted")
     quote_id: str = Field(..., description="UUID of the quote to use for the payout")
-    quote: dict = Field(..., description="Full quote object")
+    quote: QuoteResponse = Field(..., description="Full quote object")
     token: str = Field(..., description="Token type to use for the payout (USDC or USDT)")
 
     class Config:

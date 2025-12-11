@@ -14,13 +14,19 @@ from app.common.apis.cassandra.dtos import (
 from app.common.apis.cassandra.errors import CassandraAPIClientError
 from app.common.errors import MissingCredentialsError
 
+from tests.fixtures import (
+    QUOTE_ID_TEST,
+    TEST_TIMESTAMP,
+    TEST_TIMESTAMP_UTC,
+    create_test_quote_response,
+)
+
 # Test constants
 ACCOUNT_TRANSFER = "transfer"
 CURRENCY_USD = "USD"
 CURRENCY_COP = "COP"
 USER_ID_TEST = "user123"
 WALLET_ID_TEST = "wallet123"
-QUOTE_ID_TEST = "quote123"
 API_URL = "https://api.example.com"
 API_KEY = "test-api-key"
 PATCH_SECRETS = "app.common.apis.cassandra.agent.get_secret"
@@ -81,8 +87,8 @@ class TestCassandraClient(unittest.TestCase):
             "fixed_fee": 0,
             "pct_fee": 0,
             "status": "active",
-            "expiration_ts": "2024-01-01T00:00:00",
-            "expiration_ts_utc": "2024-01-01T00:00:00Z",
+            "expiration_ts": TEST_TIMESTAMP,
+            "expiration_ts_utc": TEST_TIMESTAMP_UTC,
         }
 
         client = CassandraClient()
@@ -186,8 +192,8 @@ class TestCassandraClient(unittest.TestCase):
             "to_amount": "1000.0",
             "to_currency": CURRENCY_COP,
             "status": "pending",
-            "created_at": "2024-01-01T00:00:00",
-            "updated_at": "2024-01-01T00:00:00",
+            "created_at": TEST_TIMESTAMP,
+            "updated_at": TEST_TIMESTAMP,
         }
 
         payout_data = PayoutCreateRequest(
@@ -197,7 +203,7 @@ class TestCassandraClient(unittest.TestCase):
             quote_currency=CURRENCY_COP,
             amount=100.0,
             quote_id=QUOTE_ID_TEST,
-            quote={"quote_id": QUOTE_ID_TEST},
+            quote=create_test_quote_response(),
             token="USDC",
         )
 
@@ -266,8 +272,8 @@ class TestCassandraClient(unittest.TestCase):
             "fixed_fee": 0,
             "pct_fee": 0,
             "status": "active",
-            "expiration_ts": "2024-01-01T00:00:00",
-            "expiration_ts_utc": "2024-01-01T00:00:00Z",
+            "expiration_ts": TEST_TIMESTAMP,
+            "expiration_ts_utc": TEST_TIMESTAMP_UTC,
         }
         # Set _api_key_is_valid to True in the agent
         mock_agent._api_key_is_valid = True
