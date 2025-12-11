@@ -109,9 +109,13 @@ class CassandraClient:
             CassandraAPIClientError: If API call fails
         """
         req_path = f"{BASE_PAYOUTS_PATH}{PATH_SEPARATOR}{account}/payout"
+        # Use model_dump(mode="json") to get a JSON-ready dict directly
+        # This ensures Decimal is serialized correctly via json_encoders
+        # Since quote is now QuoteResponse (Pydantic model), all Decimals are handled automatically
+        payload = payout_data.model_dump(mode="json")
         response_data = self._agent.post(
             req_path=req_path,
-            json=payout_data.model_dump(),
+            json=payload,
         )
         return PayoutResponse(**response_data)
 
