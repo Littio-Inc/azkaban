@@ -17,6 +17,7 @@ DIAGON_API_KEY = "DIAGON_API_KEY"
 DIAGON_BASE_URL = "DIAGON_BASE_URL"
 BASE_ACCOUNTS_PATH = "/vault/accounts"
 BASE_TRANSACTIONS_PATH = "/vault/transactions"
+BASE_EXTERNAL_WALLETS_PATH = "/vault/external-wallets"
 
 
 class DiagonAgent(RESTfulAPIAgent):
@@ -112,6 +113,23 @@ class DiagonAgent(RESTfulAPIAgent):
             method="POST",
             path=req_path,
             body=json,
+        )
+        response = self._make_request_with_error_handling(params)
+        return response.json()
+
+    def get_external_wallets(self) -> dict[str, Any] | list[dict[str, Any]]:
+        """Make a GET request to get external wallets from Diagon API.
+
+        Returns:
+            Response data as dictionary (when no wallets found) or list (when wallets exist)
+
+        Raises:
+            DiagonAPIClientError: If API call fails
+        """
+        self._authenticate()
+        params = MakeRequestParams(
+            method="GET",
+            path=BASE_EXTERNAL_WALLETS_PATH,
         )
         response = self._make_request_with_error_handling(params)
         return response.json()

@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Constants
+DIAGON_API_ERROR_MSG = "Diagon API error: %s"
+
 
 def _get_accounts_data() -> list[dict]:
     """Get accounts data from Diagon client.
@@ -50,7 +53,7 @@ def get_vault_accounts(
     try:
         accounts_data = _get_accounts_data()
     except DiagonAPIClientError as api_error:
-        logger.error("Diagon API error: %s", api_error)
+        logger.error(DIAGON_API_ERROR_MSG, api_error)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Error retrieving accounts from Diagon service"
@@ -108,7 +111,7 @@ def refresh_balance(
     try:
         refresh_data = _refresh_balance_data(account_id, asset)
     except DiagonAPIClientError as api_error:
-        logger.error("Diagon API error: %s", api_error)
+        logger.error(DIAGON_API_ERROR_MSG, api_error)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Error refreshing balance from Diagon service"
@@ -168,7 +171,7 @@ def estimate_fee(
     try:
         fee_data = _estimate_fee_data(request)
     except DiagonAPIClientError as api_error:
-        logger.error("Diagon API error: %s", api_error)
+        logger.error(DIAGON_API_ERROR_MSG, api_error)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Error estimating fee from Diagon service"
@@ -180,3 +183,53 @@ def estimate_fee(
             detail="Error estimating fee from Diagon service"
         )
     return fee_data
+
+
+def _get_external_wallets_data() -> list[dict]:
+    """Get external wallets data from Diagon client.
+
+    Returns:
+        List of external wallets data dictionaries
+
+    Raises:
+        DiagonAPIClientError: If API call fails
+    """
+    client = DiagonClient()
+    wallets = client.get_external_wallets()
+    return [wallet.model_dump() for wallet in wallets]
+
+
+@router.get("/vault/external-wallets")
+def get_external_wallets(
+    current_user: dict = Depends(get_current_user)  # noqa: WPS404
+):
+    """Get external wallets from Diagon.
+
+    This endpoint requires authentication and proxies requests to Diagon API.
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        list: List of external wallets with their assets from Diagon
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info("Getting external wallets from Diagon")
+
+    try:
+        wallets_data = _get_external_wallets_data()
+    except DiagonAPIClientError as api_error:
+        logger.error(DIAGON_API_ERROR_MSG, api_error)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error retrieving external wallets from Diagon service"
+        )
+    except Exception as exc:
+        logger.error("Error getting external wallets from Diagon: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error retrieving external wallets from Diagon service"
+        )
+    return wallets_data

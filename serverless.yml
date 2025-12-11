@@ -160,6 +160,10 @@ functions:
           path: /v1/vault/transactions/estimate-fee
           authorizer: azkaban-authorizer
       - httpApi:
+          method: GET
+          path: /v1/vault/external-wallets
+          authorizer: azkaban-authorizer
+      - httpApi:
           method: get
           path: /health
       - httpApi:

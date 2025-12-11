@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from app.common.apis.diagon.client import DiagonClient
-from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, RefreshBalanceResponse
+from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, ExternalWallet, RefreshBalanceResponse
 
 PATCH_AGENT = "app.common.apis.diagon.client.DiagonAgent"
 
@@ -137,6 +137,109 @@ class TestDiagonClient(unittest.TestCase):
         self.assertEqual(json_data["operation"], "TRANSFER")
         self.assertEqual(json_data["assetId"], "USDC_AMOY_POLYGON_TEST_7WWV")
         self.assertEqual(json_data["amount"], "1")
+
+    @patch(PATCH_AGENT)
+    def test_get_external_wallets_success(self, mock_agent_class):
+        """Test getting external wallets successfully."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = [
+            {
+                "id": "wallet-1",
+                "name": "Test Wallet",
+                "customerRefId": "customer-123",
+                "assets": [
+                    {
+                        "id": "USDC_POLYGON",
+                        "balance": "100.0",
+                        "lockedAmount": "0",
+                        "status": "WAITING_FOR_APPROVAL",
+                        "address": "0x1234567890abcdef",
+                        "tag": "",
+                        "activationTime": "2024-01-01T00:00:00Z"
+                    }
+                ]
+            }
+        ]
+        mock_agent.get_external_wallets.return_value = mock_response_data
+
+        client = DiagonClient()
+        result = client.get_external_wallets()
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], ExternalWallet)
+        self.assertEqual(result[0].id, "wallet-1")
+        self.assertEqual(result[0].name, "Test Wallet")
+        self.assertEqual(result[0].customerRefId, "customer-123")
+        self.assertEqual(len(result[0].assets), 1)
+        self.assertEqual(result[0].assets[0].id, "USDC_POLYGON")
+        self.assertEqual(result[0].assets[0].balance, "100.0")
+        self.assertEqual(result[0].assets[0].status, "WAITING_FOR_APPROVAL")
+        mock_agent.get_external_wallets.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    def test_get_external_wallets_empty(self, mock_agent_class):
+        """Test getting external wallets when no wallets found."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = {
+            "message": "No external wallets found",
+            "code": 0,
+            "data": []
+        }
+        mock_agent.get_external_wallets.return_value = mock_response_data
+
+        client = DiagonClient()
+        result = client.get_external_wallets()
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 0)
+        mock_agent.get_external_wallets.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    def test_get_external_wallets_multiple(self, mock_agent_class):
+        """Test getting multiple external wallets."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = [
+            {
+                "id": "wallet-1",
+                "name": "Wallet 1",
+                "customerRefId": "customer-123",
+                "assets": []
+            },
+            {
+                "id": "wallet-2",
+                "name": "Wallet 2",
+                "customerRefId": "customer-456",
+                "assets": [
+                    {
+                        "id": "BTC",
+                        "balance": "0.5",
+                        "lockedAmount": "0",
+                        "status": "ACTIVE",
+                        "address": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+                        "tag": "",
+                        "activationTime": "2024-01-01T00:00:00Z"
+                    }
+                ]
+            }
+        ]
+        mock_agent.get_external_wallets.return_value = mock_response_data
+
+        client = DiagonClient()
+        result = client.get_external_wallets()
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].id, "wallet-1")
+        self.assertEqual(result[1].id, "wallet-2")
+        self.assertEqual(len(result[0].assets), 0)
+        self.assertEqual(len(result[1].assets), 1)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, RefreshBalanceResponse
+from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, ExternalWallet, RefreshBalanceResponse
 from app.middleware.auth import get_current_user
 from app.routes.diagon_routes import router
 
@@ -304,6 +304,91 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 502)
         data = response.json()
         self.assertIn("error estimating fee", data["detail"].lower())
+
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_get_external_wallets_success(self, mock_diagon_service):
+        """Test getting external wallets successfully."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_wallets_data = [
+            {
+                "id": "wallet-1",
+                "name": "Test Wallet",
+                "customerRefId": "customer-123",
+                "assets": [
+                    {
+                        "id": "USDC_POLYGON",
+                        "balance": "100.0",
+                        "lockedAmount": "0",
+                        "status": "WAITING_FOR_APPROVAL",
+                        "address": "0x1234567890abcdef",
+                        "tag": "",
+                        "activationTime": "2024-01-01T00:00:00Z"
+                    }
+                ]
+            }
+        ]
+
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_external_wallets.return_value = [ExternalWallet(**wallet) for wallet in mock_wallets_data]
+
+        response = self.client.get("/v1/vault/external-wallets")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["id"], "wallet-1")
+        self.assertEqual(data[0]["name"], "Test Wallet")
+        self.assertEqual(data[0]["customerRefId"], "customer-123")
+        self.assertEqual(len(data[0]["assets"]), 1)
+        self.assertEqual(data[0]["assets"][0]["id"], "USDC_POLYGON")
+        self.assertEqual(data[0]["assets"][0]["balance"], "100.0")
+        self.assertEqual(data[0]["assets"][0]["status"], "WAITING_FOR_APPROVAL")
+        mock_client.get_external_wallets.assert_called_once()
+
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_get_external_wallets_empty(self, mock_diagon_service):
+        """Test getting external wallets when no wallets found."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_external_wallets.return_value = []
+
+        response = self.client.get("/v1/vault/external-wallets")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data, [])
+        mock_client.get_external_wallets.assert_called_once()
+
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_get_external_wallets_configuration_error(self, mock_diagon_service):
+        """Test getting external wallets when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.apis.diagon.errors import DiagonAPIClientError
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_external_wallets.side_effect = DiagonAPIClientError("DIAGON_API_KEY not found in secrets")
+
+        response = self.client.get("/v1/vault/external-wallets")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error retrieving external wallets", data["detail"].lower())
+
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_get_external_wallets_generic_error(self, mock_diagon_service):
+        """Test getting external wallets when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_external_wallets.side_effect = Exception("Network error")
+
+        response = self.client.get("/v1/vault/external-wallets")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error retrieving external wallets", data["detail"].lower())
 
 
 if __name__ == "__main__":

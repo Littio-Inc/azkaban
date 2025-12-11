@@ -87,3 +87,30 @@ class EstimateFeeResponse(BaseModel):
     low: FeeEstimate = Field(..., description="Low priority fee estimate")
     medium: FeeEstimate = Field(..., description="Medium priority fee estimate")
     high: FeeEstimate = Field(..., description="High priority fee estimate")
+
+
+class ExternalWalletAsset(BaseModel):
+    """Response model for an external wallet asset."""
+
+    id: str = Field(..., description="Asset identifier")
+    balance: str = Field(..., description="Balance amount")
+    lockedAmount: str = Field(..., description="Locked amount", alias="lockedAmount")
+    status: str = Field(..., description="Asset status")
+    address: str = Field(..., description="Wallet address")
+    tag: str = Field(..., description="Tag or memo")
+    activationTime: str = Field(..., description="Activation time", alias="activationTime")
+
+    class Config:
+        populate_by_name = True
+
+
+class ExternalWallet(BaseModel):
+    """Response model for an external wallet."""
+
+    id: str = Field(..., description="Wallet ID")
+    name: str = Field(..., description="Wallet name")
+    customerRefId: str = Field(..., description="Customer reference ID", alias="customerRefId")
+    assets: list[ExternalWalletAsset] = Field(..., description="List of assets")
+
+    class Config:
+        populate_by_name = True
