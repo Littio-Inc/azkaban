@@ -185,18 +185,23 @@ def estimate_fee(
     return fee_data
 
 
-def _get_external_wallets_data() -> list[dict]:
+def _get_external_wallets_data() -> list[dict] | dict:
     """Get external wallets data from Diagon client.
 
     Returns:
-        List of external wallets data dictionaries
+        List of external wallets data dictionaries when wallets exist, or
+        Dictionary with message, code, and data when no wallets found.
 
     Raises:
         DiagonAPIClientError: If API call fails
     """
     client = DiagonClient()
     wallets = client.get_external_wallets()
-    return [wallet.model_dump() for wallet in wallets]
+    # If it's a list, convert to list of dicts
+    if isinstance(wallets, list):
+        return [wallet.model_dump() for wallet in wallets]
+    # If it's the empty response, return as dict
+    return wallets.model_dump()
 
 
 @router.get("/vault/external-wallets")
@@ -211,7 +216,8 @@ def get_external_wallets(
         current_user: Current authenticated user
 
     Returns:
-        list: List of external wallets with their assets from Diagon
+        list | dict: List of external wallets with their assets from Diagon,
+            or dict with message, code, and data when no wallets found
 
     Raises:
         HTTPException: If API call fails or user is not authenticated

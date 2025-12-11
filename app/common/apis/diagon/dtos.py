@@ -114,3 +114,14 @@ class ExternalWallet(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+class ExternalWalletsEmptyResponse(BaseModel):
+    """Response model when no external wallets are found."""
+
+    message: str = Field(..., description="Response message")
+    code: int = Field(..., description="Response code")
+    data: list = Field(..., description="Empty data list")
+
+    class Config:
+        populate_by_name = True

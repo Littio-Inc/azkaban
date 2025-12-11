@@ -10,6 +10,7 @@ from app.common.apis.diagon.dtos import (
     EstimateFeeRequest,
     EstimateFeeResponse,
     ExternalWallet,
+    ExternalWalletsEmptyResponse,
     RefreshBalanceResponse,
 )
 
@@ -80,12 +81,12 @@ class DiagonClient:
         response_data = self._agent.post(req_path=req_path, json=request_dict)
         return EstimateFeeResponse(**response_data)
 
-    def get_external_wallets(self) -> list[ExternalWallet]:
+    def get_external_wallets(self) -> list[ExternalWallet] | ExternalWalletsEmptyResponse:
         """Get external wallets from Diagon API.
 
         Returns:
-            List of ExternalWallet objects containing wallet information and assets.
-            Returns empty list if no wallets found.
+            List of ExternalWallet objects when wallets exist, or
+            ExternalWalletsEmptyResponse when no wallets found.
 
         Raises:
             DiagonAPIClientError: If API call fails
@@ -93,7 +94,7 @@ class DiagonClient:
         response_data = self._agent.get_external_wallets()
         # Handle response when no wallets found (dict with message, code, data)
         if isinstance(response_data, dict) and "data" in response_data:
-            return []
+            return ExternalWalletsEmptyResponse(**response_data)
         # Handle response when wallets exist (list of wallets)
         if isinstance(response_data, list):
             return [ExternalWallet(**wallet) for wallet in response_data]

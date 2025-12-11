@@ -4,7 +4,14 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from app.common.apis.diagon.client import DiagonClient
-from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, ExternalWallet, RefreshBalanceResponse
+from app.common.apis.diagon.dtos import (
+    AccountResponse,
+    EstimateFeeRequest,
+    EstimateFeeResponse,
+    ExternalWallet,
+    ExternalWalletsEmptyResponse,
+    RefreshBalanceResponse,
+)
 
 PATCH_AGENT = "app.common.apis.diagon.client.DiagonAgent"
 
@@ -195,8 +202,10 @@ class TestDiagonClient(unittest.TestCase):
         client = DiagonClient()
         result = client.get_external_wallets()
 
-        self.assertIsInstance(result, list)
-        self.assertEqual(len(result), 0)
+        self.assertIsInstance(result, ExternalWalletsEmptyResponse)
+        self.assertEqual(result.message, "No external wallets found")
+        self.assertEqual(result.code, 0)
+        self.assertEqual(result.data, [])
         mock_agent.get_external_wallets.assert_called_once()
 
     @patch(PATCH_AGENT)

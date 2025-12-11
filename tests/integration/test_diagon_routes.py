@@ -6,7 +6,14 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, ExternalWallet, RefreshBalanceResponse
+from app.common.apis.diagon.dtos import (
+    AccountResponse,
+    EstimateFeeRequest,
+    EstimateFeeResponse,
+    ExternalWallet,
+    ExternalWalletsEmptyResponse,
+    RefreshBalanceResponse,
+)
 from app.middleware.auth import get_current_user
 from app.routes.diagon_routes import router
 
@@ -352,13 +359,20 @@ class TestDiagonRoutes(unittest.TestCase):
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         mock_client = mock_diagon_service.return_value
-        mock_client.get_external_wallets.return_value = []
+        empty_response = ExternalWalletsEmptyResponse(
+            message="No external wallets found",
+            code=0,
+            data=[]
+        )
+        mock_client.get_external_wallets.return_value = empty_response
 
         response = self.client.get("/v1/vault/external-wallets")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data, [])
+        self.assertEqual(data["message"], "No external wallets found")
+        self.assertEqual(data["code"], 0)
+        self.assertEqual(data["data"], [])
         mock_client.get_external_wallets.assert_called_once()
 
     @patch("app.routes.diagon_routes.DiagonClient")
