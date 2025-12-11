@@ -1,7 +1,18 @@
 """Diagon API client for vault accounts."""
 
-from app.common.apis.diagon.agent import BASE_ACCOUNTS_PATH, BASE_TRANSACTIONS_PATH, DiagonAgent
-from app.common.apis.diagon.dtos import AccountResponse, EstimateFeeRequest, EstimateFeeResponse, RefreshBalanceResponse
+from app.common.apis.diagon.agent import (
+    BASE_ACCOUNTS_PATH,
+    BASE_TRANSACTIONS_PATH,
+    DiagonAgent,
+)
+from app.common.apis.diagon.dtos import (
+    AccountResponse,
+    EstimateFeeRequest,
+    EstimateFeeResponse,
+    ExternalWallet,
+    ExternalWalletsEmptyResponse,
+    RefreshBalanceResponse,
+)
 
 # Constants
 PATH_SEPARATOR = "/"
@@ -69,3 +80,23 @@ class DiagonClient:
         request_dict = request.model_dump(by_alias=True)
         response_data = self._agent.post(req_path=req_path, json=request_dict)
         return EstimateFeeResponse(**response_data)
+
+    def get_external_wallets(self) -> list[ExternalWallet] | ExternalWalletsEmptyResponse:
+        """Get external wallets from Diagon API.
+
+        Returns:
+            List of ExternalWallet objects when wallets exist, or
+            ExternalWalletsEmptyResponse when no wallets found.
+
+        Raises:
+            DiagonAPIClientError: If API call fails
+        """
+        response_data = self._agent.get_external_wallets()
+        # Handle response when no wallets found (dict with message, code, data)
+        if isinstance(response_data, dict) and "data" in response_data:
+            return ExternalWalletsEmptyResponse(**response_data)
+        # Handle response when wallets exist (list of wallets)
+        if isinstance(response_data, list):
+            return [ExternalWallet(**wallet) for wallet in response_data]
+        # If single object, wrap in list
+        return [ExternalWallet(**response_data)]
