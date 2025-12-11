@@ -20,8 +20,6 @@ class AssetResponse(BaseModel):
     blockHash: Optional[str] = Field(None, description="Block hash", alias="blockHash")
 
     class Config:
-        """Pydantic configuration."""
-
         populate_by_name = True
 
 
@@ -35,8 +33,6 @@ class AccountResponse(BaseModel):
     assets: list[AssetResponse] = Field(..., description="List of assets")
 
     class Config:
-        """Pydantic configuration."""
-
         populate_by_name = True
 
 
@@ -47,6 +43,47 @@ class RefreshBalanceResponse(BaseModel):
     idempotencyKey: str = Field(..., description="Idempotency key", alias="idempotencyKey")
 
     class Config:
-        """Pydantic configuration."""
-
         populate_by_name = True
+
+
+class SourceDestination(BaseModel):
+    """Source or destination model for transaction estimate."""
+
+    type: str = Field(..., description="Type (e.g., 'VAULT_ACCOUNT')")
+    id: str = Field(..., description="Account ID")
+
+
+class EstimateFeeRequest(BaseModel):
+    """Request model for estimating transaction fee."""
+
+    operation: str = Field(..., description="Operation type (e.g., 'TRANSFER')")
+    source: SourceDestination = Field(..., description="Source account")
+    destination: SourceDestination = Field(..., description="Destination account")
+    assetId: str = Field(..., description="Asset identifier", alias="assetId")
+    amount: str = Field(..., description="Transaction amount")
+
+    class Config:
+        populate_by_name = True
+
+
+class FeeEstimate(BaseModel):
+    """Fee estimate model for a specific priority level."""
+
+    networkFee: str = Field(..., description="Network fee", alias="networkFee")
+    gasPrice: str = Field(..., description="Gas price", alias="gasPrice")
+    gasLimit: str = Field(..., description="Gas limit", alias="gasLimit")
+    baseFee: str = Field(..., description="Base fee", alias="baseFee")
+    priorityFee: str = Field(..., description="Priority fee", alias="priorityFee")
+    l1Fee: str = Field(..., description="L1 fee", alias="l1Fee")
+    maxFeePerGasDelta: str = Field(..., description="Max fee per gas delta", alias="maxFeePerGasDelta")
+
+    class Config:
+        populate_by_name = True
+
+
+class EstimateFeeResponse(BaseModel):
+    """Response model for transaction fee estimate."""
+
+    low: FeeEstimate = Field(..., description="Low priority fee estimate")
+    medium: FeeEstimate = Field(..., description="Medium priority fee estimate")
+    high: FeeEstimate = Field(..., description="High priority fee estimate")
