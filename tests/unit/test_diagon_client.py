@@ -11,6 +11,8 @@ from app.common.apis.diagon.dtos import (
     ExternalWallet,
     ExternalWalletsEmptyResponse,
     RefreshBalanceResponse,
+    VaultToVaultRequest,
+    VaultToVaultResponse,
 )
 
 PATCH_AGENT = "app.common.apis.diagon.client.DiagonAgent"
@@ -59,6 +61,30 @@ class TestDiagonClient(unittest.TestCase):
 
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 0)
+
+    @patch(PATCH_AGENT)
+    def test_get_accounts_single_object(self, mock_agent_class):
+        """Test getting accounts when single object is returned."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = {
+            "id": "1",
+            "name": "Test Account",
+            "hiddenOnUI": False,
+            "autoFuel": False,
+            "assets": []
+        }
+        mock_agent.get.return_value = mock_response_data
+
+        client = DiagonClient()
+        result = client.get_accounts()
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], AccountResponse)
+        self.assertEqual(result[0].id, "1")
+        self.assertEqual(result[0].name, "Test Account")
 
     @patch(PATCH_AGENT)
     def test_refresh_balance_success(self, mock_agent_class):
@@ -249,6 +275,71 @@ class TestDiagonClient(unittest.TestCase):
         self.assertEqual(result[1].id, "wallet-2")
         self.assertEqual(len(result[0].assets), 0)
         self.assertEqual(len(result[1].assets), 1)
+
+    @patch(PATCH_AGENT)
+    def test_get_external_wallets_single_object(self, mock_agent_class):
+        """Test getting external wallets when single object is returned."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = {
+            "id": "wallet-1",
+            "name": "Test Wallet",
+            "customerRefId": "customer-123",
+            "assets": []
+        }
+        mock_agent.get_external_wallets.return_value = mock_response_data
+
+        client = DiagonClient()
+        result = client.get_external_wallets()
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], ExternalWallet)
+        self.assertEqual(result[0].id, "wallet-1")
+        self.assertEqual(result[0].name, "Test Wallet")
+        mock_agent.get_external_wallets.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    def test_vault_to_vault_success(self, mock_agent_class):
+        """Test creating vault-to-vault transaction successfully."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = {
+            "id": "c5e4379f-b344-4124-89b4-e8e76ea943a4",
+            "status": "SUBMITTED"
+        }
+        mock_agent.post.return_value = mock_response_data
+
+        request = VaultToVaultRequest(
+            network="polygon",
+            service="BLOCKCHAIN_WITHDRAWAL",
+            token="usdc",
+            sourceVaultId="5",
+            destinationWalletId="0x958be847d9E7E93B897CfCc6A9E7065C273490a9",
+            feeLevel="HIGH",
+            amount="9.98"
+        )
+
+        client = DiagonClient()
+        result = client.vault_to_vault(request)
+
+        self.assertIsInstance(result, VaultToVaultResponse)
+        self.assertEqual(result.id, "c5e4379f-b344-4124-89b4-e8e76ea943a4")
+        self.assertEqual(result.status, "SUBMITTED")
+        mock_agent.post.assert_called_once()
+        call_args = mock_agent.post.call_args
+        self.assertEqual(call_args.kwargs["req_path"], "/vault/transactions/vault-to-vault")
+        self.assertIn("json", call_args.kwargs)
+        json_data = call_args.kwargs["json"]
+        self.assertEqual(json_data["network"], "polygon")
+        self.assertEqual(json_data["service"], "BLOCKCHAIN_WITHDRAWAL")
+        self.assertEqual(json_data["token"], "usdc")
+        self.assertEqual(json_data["sourceVaultId"], "5")
+        self.assertEqual(json_data["destinationWalletId"], "0x958be847d9E7E93B897CfCc6A9E7065C273490a9")
+        self.assertEqual(json_data["feeLevel"], "HIGH")
+        self.assertEqual(json_data["amount"], "9.98")
 
 
 if __name__ == "__main__":

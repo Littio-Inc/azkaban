@@ -12,6 +12,8 @@ from app.common.apis.diagon.dtos import (
     ExternalWallet,
     ExternalWalletsEmptyResponse,
     RefreshBalanceResponse,
+    VaultToVaultRequest,
+    VaultToVaultResponse,
 )
 
 # Constants
@@ -100,3 +102,21 @@ class DiagonClient:
             return [ExternalWallet(**wallet) for wallet in response_data]
         # If single object, wrap in list
         return [ExternalWallet(**response_data)]
+
+    def vault_to_vault(self, request: VaultToVaultRequest) -> VaultToVaultResponse:
+        """Create a vault-to-vault transaction.
+
+        Args:
+            request: VaultToVaultRequest containing network, service, token,
+                sourceVaultId, destinationWalletId, feeLevel, and amount
+
+        Returns:
+            VaultToVaultResponse containing transaction id and status
+
+        Raises:
+            DiagonAPIClientError: If API call fails
+        """
+        req_path = f"{BASE_TRANSACTIONS_PATH}/vault-to-vault"
+        request_dict = request.model_dump(by_alias=True)
+        response_data = self._agent.post(req_path=req_path, json=request_dict)
+        return VaultToVaultResponse(**response_data)
