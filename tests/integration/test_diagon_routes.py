@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from faker import Faker
 
 from app.common.apis.diagon.dtos import (
     AccountResponse,
@@ -18,6 +19,8 @@ from app.common.apis.diagon.dtos import (
 )
 from app.middleware.auth import get_current_user
 from app.routes.diagon_routes import router
+
+fake = Faker()
 
 
 class TestDiagonRoutes(unittest.TestCase):
@@ -411,41 +414,51 @@ class TestDiagonRoutes(unittest.TestCase):
         """Test creating transaction successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        transaction_id = fake.uuid4()
+        status = fake.random_element(elements=("SUBMITTED", "PENDING", "COMPLETED"))
+        network = fake.random_element(elements=("polygon", "ethereum", "bitcoin"))
+        service = fake.random_element(elements=("BLOCKCHAIN_WITHDRAWAL", "BLOCKCHAIN_DEPOSIT"))
+        token = fake.random_element(elements=("usdc", "usdt", "eth", "btc"))
+        source_vault_id = str(fake.random_int(min=1, max=100))
+        destination_wallet_id = fake.hexify(text="0x^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        fee_level = fake.random_element(elements=("HIGH", "MEDIUM", "LOW"))
+        amount = str(fake.pydecimal(left_digits=2, right_digits=2, positive=True))
+
         mock_response_data = {
-            "id": "c5e4379f-b344-4124-89b4-e8e76ea943a4",
-            "status": "SUBMITTED"
+            "id": transaction_id,
+            "status": status
         }
 
         mock_client = mock_diagon_service.return_value
         mock_client.vault_to_vault.return_value = VaultToVaultResponse(**mock_response_data)
 
         request_data = {
-            "network": "polygon",
-            "service": "BLOCKCHAIN_WITHDRAWAL",
-            "token": "usdc",
-            "sourceVaultId": "5",
-            "destinationWalletId": "0x958be847d9E7E93B897CfCc6A9E7065C273490a9",
-            "feeLevel": "HIGH",
-            "amount": "9.98"
+            "network": network,
+            "service": service,
+            "token": token,
+            "sourceVaultId": source_vault_id,
+            "destinationWalletId": destination_wallet_id,
+            "feeLevel": fee_level,
+            "amount": amount
         }
 
         response = self.client.post("/v1/vault/transactions/create-transaction", json=request_data)
 
-        self.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         data = response.json()
-        self.assertEqual(data["id"], "c5e4379f-b344-4124-89b4-e8e76ea943a4")
-        self.assertEqual(data["status"], "SUBMITTED")
+        assert data["id"] == transaction_id
+        assert data["status"] == status
         mock_client.vault_to_vault.assert_called_once()
         call_args = mock_client.vault_to_vault.call_args
         request_obj = call_args[0][0]
-        self.assertIsInstance(request_obj, VaultToVaultRequest)
-        self.assertEqual(request_obj.network, "polygon")
-        self.assertEqual(request_obj.service, "BLOCKCHAIN_WITHDRAWAL")
-        self.assertEqual(request_obj.token, "usdc")
-        self.assertEqual(request_obj.sourceVaultId, "5")
-        self.assertEqual(request_obj.destinationWalletId, "0x958be847d9E7E93B897CfCc6A9E7065C273490a9")
-        self.assertEqual(request_obj.feeLevel, "HIGH")
-        self.assertEqual(request_obj.amount, "9.98")
+        assert isinstance(request_obj, VaultToVaultRequest)
+        assert request_obj.network == network
+        assert request_obj.service == service
+        assert request_obj.token == token
+        assert request_obj.sourceVaultId == source_vault_id
+        assert request_obj.destinationWalletId == destination_wallet_id
+        assert request_obj.feeLevel == fee_level
+        assert request_obj.amount == amount
 
     @patch("app.routes.diagon_routes.DiagonClient")
     def test_create_transaction_configuration_error(self, mock_diagon_service):
@@ -457,20 +470,20 @@ class TestDiagonRoutes(unittest.TestCase):
         mock_client.vault_to_vault.side_effect = DiagonAPIClientError("DIAGON_API_KEY not found in secrets")
 
         request_data = {
-            "network": "polygon",
-            "service": "BLOCKCHAIN_WITHDRAWAL",
-            "token": "usdc",
-            "sourceVaultId": "5",
-            "destinationWalletId": "0x958be847d9E7E93B897CfCc6A9E7065C273490a9",
-            "feeLevel": "HIGH",
-            "amount": "9.98"
+            "network": fake.random_element(elements=("polygon", "ethereum", "bitcoin")),
+            "service": fake.random_element(elements=("BLOCKCHAIN_WITHDRAWAL", "BLOCKCHAIN_DEPOSIT")),
+            "token": fake.random_element(elements=("usdc", "usdt", "eth", "btc")),
+            "sourceVaultId": str(fake.random_int(min=1, max=100)),
+            "destinationWalletId": fake.hexify(text="0x^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"),
+            "feeLevel": fake.random_element(elements=("HIGH", "MEDIUM", "LOW")),
+            "amount": str(fake.pydecimal(left_digits=2, right_digits=2, positive=True))
         }
 
         response = self.client.post("/v1/vault/transactions/create-transaction", json=request_data)
 
-        self.assertEqual(response.status_code, 502)
+        assert response.status_code == 502
         data = response.json()
-        self.assertIn("error creating transaction", data["detail"].lower())
+        assert "error creating transaction" in data["detail"].lower()
 
     @patch("app.routes.diagon_routes.DiagonClient")
     def test_create_transaction_generic_error(self, mock_diagon_service):
@@ -481,20 +494,20 @@ class TestDiagonRoutes(unittest.TestCase):
         mock_client.vault_to_vault.side_effect = Exception("Network error")
 
         request_data = {
-            "network": "polygon",
-            "service": "BLOCKCHAIN_WITHDRAWAL",
-            "token": "usdc",
-            "sourceVaultId": "5",
-            "destinationWalletId": "0x958be847d9E7E93B897CfCc6A9E7065C273490a9",
-            "feeLevel": "HIGH",
-            "amount": "9.98"
+            "network": fake.random_element(elements=("polygon", "ethereum", "bitcoin")),
+            "service": fake.random_element(elements=("BLOCKCHAIN_WITHDRAWAL", "BLOCKCHAIN_DEPOSIT")),
+            "token": fake.random_element(elements=("usdc", "usdt", "eth", "btc")),
+            "sourceVaultId": str(fake.random_int(min=1, max=100)),
+            "destinationWalletId": fake.hexify(text="0x^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"),
+            "feeLevel": fake.random_element(elements=("HIGH", "MEDIUM", "LOW")),
+            "amount": str(fake.pydecimal(left_digits=2, right_digits=2, positive=True))
         }
 
         response = self.client.post("/v1/vault/transactions/create-transaction", json=request_data)
 
-        self.assertEqual(response.status_code, 502)
+        assert response.status_code == 502
         data = response.json()
-        self.assertIn("error creating transaction", data["detail"].lower())
+        assert "error creating transaction" in data["detail"].lower()
 
 
 if __name__ == "__main__":
