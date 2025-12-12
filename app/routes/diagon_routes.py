@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.common.apis.diagon.client import DiagonClient
-from app.common.apis.diagon.dtos import EstimateFeeRequest
+from app.common.apis.diagon.dtos import EstimateFeeRequest, VaultToVaultRequest
 from app.common.apis.diagon.errors import DiagonAPIClientError
 from app.middleware.auth import get_current_user
 
@@ -239,3 +239,66 @@ def get_external_wallets(
             detail="Error retrieving external wallets from Diagon service"
         )
     return wallets_data
+
+
+def _create_transaction_data(request: VaultToVaultRequest) -> dict:
+    """Create transaction data from Diagon client.
+
+    Args:
+        request: VaultToVaultRequest with network, service, token,
+            sourceVaultId, destinationWalletId, feeLevel, and amount
+
+    Returns:
+        Dictionary with transaction response
+
+    Raises:
+        DiagonAPIClientError: If API call fails
+    """
+    client = DiagonClient()
+    response = client.vault_to_vault(request)
+    return response.model_dump()
+
+
+@router.post("/vault/transactions/create-transaction")
+def create_transaction(
+    request: VaultToVaultRequest,
+    current_user: dict = Depends(get_current_user)  # noqa: WPS404
+):
+    """Create a transaction from Diagon (vault-to-vault, vault-to-external, etc.).
+
+    This endpoint requires authentication and proxies requests to Diagon API.
+
+    Args:
+        request: VaultToVaultRequest with network, service, token,
+            sourceVaultId, destinationWalletId, feeLevel, and amount
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Response with transaction id and status
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(
+        "Creating transaction: network %s, service %s, token %s, amount %s from Diagon",
+        request.network,
+        request.service,
+        request.token,
+        request.amount
+    )
+
+    try:
+        transaction_data = _create_transaction_data(request)
+    except DiagonAPIClientError as api_error:
+        logger.error(DIAGON_API_ERROR_MSG, api_error)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error creating transaction from Diagon service"
+        )
+    except Exception as exc:
+        logger.error("Error creating transaction from Diagon: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error creating transaction from Diagon service"
+        )
+    return transaction_data
