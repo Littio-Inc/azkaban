@@ -331,7 +331,7 @@ class TestDiagonClient(unittest.TestCase):
         assert result.status == "SUBMITTED"
         mock_agent.post.assert_called_once()
         call_args = mock_agent.post.call_args
-        assert call_args.kwargs["req_path"] == "/vault/transactions/vault-to-vault"
+        assert call_args.kwargs["req_path"] == "/transactions/vault-to-vault"
         assert "json" in call_args.kwargs
         json_data = call_args.kwargs["json"]
         assert json_data["network"] == "polygon"
@@ -345,4 +345,3 @@ class TestDiagonClient(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

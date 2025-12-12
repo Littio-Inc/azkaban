@@ -3,6 +3,7 @@
 from app.common.apis.diagon.agent import (
     BASE_ACCOUNTS_PATH,
     BASE_TRANSACTIONS_PATH,
+    BASE_VAULT_TRANSACTIONS_PATH,
     DiagonAgent,
 )
 from app.common.apis.diagon.dtos import (
@@ -78,7 +79,7 @@ class DiagonClient:
         Raises:
             DiagonAPIClientError: If API call fails
         """
-        req_path = f"{BASE_TRANSACTIONS_PATH}/estimate-fee"
+        req_path = f"{BASE_VAULT_TRANSACTIONS_PATH}/estimate-fee"
         request_dict = request.model_dump(by_alias=True)
         response_data = self._agent.post(req_path=req_path, json=request_dict)
         return EstimateFeeResponse(**response_data)
