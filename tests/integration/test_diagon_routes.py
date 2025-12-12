@@ -444,21 +444,21 @@ class TestDiagonRoutes(unittest.TestCase):
 
         response = self.client.post("/v1/vault/transactions/create-transaction", json=request_data)
 
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         data = response.json()
-        assert data["id"] == transaction_id
-        assert data["status"] == status
+        self.assertEqual(data["id"], transaction_id)
+        self.assertEqual(data["status"], status)
         mock_client.vault_to_vault.assert_called_once()
         call_args = mock_client.vault_to_vault.call_args
         request_obj = call_args[0][0]
-        assert isinstance(request_obj, VaultToVaultRequest)
-        assert request_obj.network == network
-        assert request_obj.service == service
-        assert request_obj.token == token
-        assert request_obj.sourceVaultId == source_vault_id
-        assert request_obj.destinationWalletId == destination_wallet_id
-        assert request_obj.feeLevel == fee_level
-        assert request_obj.amount == amount
+        self.assertIsInstance(request_obj, VaultToVaultRequest)
+        self.assertEqual(request_obj.network, network)
+        self.assertEqual(request_obj.service, service)
+        self.assertEqual(request_obj.token, token)
+        self.assertEqual(request_obj.sourceVaultId, source_vault_id)
+        self.assertEqual(request_obj.destinationWalletId, destination_wallet_id)
+        self.assertEqual(request_obj.feeLevel, fee_level)
+        self.assertEqual(request_obj.amount, amount)
 
     @patch("app.routes.diagon_routes.DiagonClient")
     def test_create_transaction_configuration_error(self, mock_diagon_service):

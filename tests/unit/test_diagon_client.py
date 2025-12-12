@@ -80,11 +80,12 @@ class TestDiagonClient(unittest.TestCase):
         client = DiagonClient()
         result = client.get_accounts()
 
-        self.assertIsInstance(result, list)
-        self.assertEqual(len(result), 1)
-        self.assertIsInstance(result[0], AccountResponse)
-        self.assertEqual(result[0].id, "1")
-        self.assertEqual(result[0].name, "Test Account")
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], AccountResponse)
+        assert result[0].id == "1"
+        assert result[0].name == "Test Account"
+        mock_agent.get.assert_called_once_with(req_path="/vault/accounts")
 
     @patch(PATCH_AGENT)
     def test_refresh_balance_success(self, mock_agent_class):
@@ -293,11 +294,11 @@ class TestDiagonClient(unittest.TestCase):
         client = DiagonClient()
         result = client.get_external_wallets()
 
-        self.assertIsInstance(result, list)
-        self.assertEqual(len(result), 1)
-        self.assertIsInstance(result[0], ExternalWallet)
-        self.assertEqual(result[0].id, "wallet-1")
-        self.assertEqual(result[0].name, "Test Wallet")
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], ExternalWallet)
+        assert result[0].id == "wallet-1"
+        assert result[0].name == "Test Wallet"
         mock_agent.get_external_wallets.assert_called_once()
 
     @patch(PATCH_AGENT)
@@ -325,21 +326,21 @@ class TestDiagonClient(unittest.TestCase):
         client = DiagonClient()
         result = client.vault_to_vault(request)
 
-        self.assertIsInstance(result, VaultToVaultResponse)
-        self.assertEqual(result.id, "c5e4379f-b344-4124-89b4-e8e76ea943a4")
-        self.assertEqual(result.status, "SUBMITTED")
+        assert isinstance(result, VaultToVaultResponse)
+        assert result.id == "c5e4379f-b344-4124-89b4-e8e76ea943a4"
+        assert result.status == "SUBMITTED"
         mock_agent.post.assert_called_once()
         call_args = mock_agent.post.call_args
-        self.assertEqual(call_args.kwargs["req_path"], "/vault/transactions/vault-to-vault")
-        self.assertIn("json", call_args.kwargs)
+        assert call_args.kwargs["req_path"] == "/vault/transactions/vault-to-vault"
+        assert "json" in call_args.kwargs
         json_data = call_args.kwargs["json"]
-        self.assertEqual(json_data["network"], "polygon")
-        self.assertEqual(json_data["service"], "BLOCKCHAIN_WITHDRAWAL")
-        self.assertEqual(json_data["token"], "usdc")
-        self.assertEqual(json_data["sourceVaultId"], "5")
-        self.assertEqual(json_data["destinationWalletId"], "0x958be847d9E7E93B897CfCc6A9E7065C273490a9")
-        self.assertEqual(json_data["feeLevel"], "HIGH")
-        self.assertEqual(json_data["amount"], "9.98")
+        assert json_data["network"] == "polygon"
+        assert json_data["service"] == "BLOCKCHAIN_WITHDRAWAL"
+        assert json_data["token"] == "usdc"
+        assert json_data["sourceVaultId"] == "5"
+        assert json_data["destinationWalletId"] == "0x958be847d9E7E93B897CfCc6A9E7065C273490a9"
+        assert json_data["feeLevel"] == "HIGH"
+        assert json_data["amount"] == "9.98"
 
 
 if __name__ == "__main__":
