@@ -63,3 +63,4 @@ logs/
 *.temp
 .cache/
 
+service-account.json

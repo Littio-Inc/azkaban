@@ -125,3 +125,26 @@ class ExternalWalletsEmptyResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+class VaultToVaultRequest(BaseModel):
+    """Request model for vault-to-vault transaction."""
+
+    network: str = Field(..., description="Network (e.g., 'polygon')")
+    service: str = Field(..., description="Service type (e.g., 'BLOCKCHAIN_WITHDRAWAL')")
+    token: str = Field(..., description="Token identifier (e.g., 'usdc')")
+    sourceVaultId: str = Field(..., description="Source vault ID", alias="sourceVaultId")
+    destinationWalletId: Optional[str] = Field(None, description="Destination wallet ID", alias="destinationWalletId")
+    destinationVaultId: Optional[str] = Field(None, description="Destination vault ID", alias="destinationVaultId")
+    feeLevel: str = Field(..., description="Fee level (e.g., 'HIGH', 'MEDIUM', 'LOW')", alias="feeLevel")
+    amount: str = Field(..., description="Transaction amount")
+
+    class Config:
+        populate_by_name = True
+
+
+class VaultToVaultResponse(BaseModel):
+    """Response model for vault-to-vault transaction."""
+
+    id: str = Field(..., description="Transaction ID")
+    status: str = Field(..., description="Transaction status (e.g., 'SUBMITTED')")
