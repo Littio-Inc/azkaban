@@ -134,7 +134,8 @@ class VaultToVaultRequest(BaseModel):
     service: str = Field(..., description="Service type (e.g., 'BLOCKCHAIN_WITHDRAWAL')")
     token: str = Field(..., description="Token identifier (e.g., 'usdc')")
     sourceVaultId: str = Field(..., description="Source vault ID", alias="sourceVaultId")
-    destinationWalletId: str = Field(..., description="Destination wallet ID", alias="destinationWalletId")
+    destinationWalletId: Optional[str] = Field(None, description="Destination wallet ID", alias="destinationWalletId")
+    destinationVaultId: Optional[str] = Field(None, description="Destination vault ID", alias="destinationVaultId")
     feeLevel: str = Field(..., description="Fee level (e.g., 'HIGH', 'MEDIUM', 'LOW')", alias="feeLevel")
     amount: str = Field(..., description="Transaction amount")
 
