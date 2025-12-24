@@ -26,3 +26,11 @@ class TOTPStatus(StrEnum):
     PENDING_VERIFICATION = "pending_verification"
     VERIFIED = "verified"
     DEACTIVATED = "deactivated"
+
+
+class Provider(StrEnum):
+    """Represents monetization providers."""
+
+    KIRA = "kira"
+    COBRE = "cobre"
+    SUPRA = "supra"

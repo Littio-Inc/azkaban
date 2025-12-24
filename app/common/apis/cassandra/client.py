@@ -32,6 +32,7 @@ class CassandraClient:
         amount: float,
         base_currency: str,
         quote_currency: str,
+        provider: str,
     ) -> QuoteResponse:
         """Get a quote for currency conversion.
 
@@ -40,6 +41,7 @@ class CassandraClient:
             amount: Amount to convert
             base_currency: Source currency code
             quote_currency: Target currency code
+            provider: Provider name (kira, cobre, supra)
 
         Returns:
             QuoteResponse containing quote information
@@ -54,16 +56,18 @@ class CassandraClient:
                 "amount": amount,
                 "base_currency": base_currency,
                 "quote_currency": quote_currency,
+                "provider": provider,
             },
         )
         return QuoteResponse(**response_data)
 
-    def get_recipients(self, account: str, user_id: str) -> list[RecipientResponse]:
+    def get_recipients(self, account: str, user_id: str, provider: str) -> list[RecipientResponse]:
         """Get recipients for an account.
 
         Args:
             account: Account type (e.g., 'transfer', 'pay')
             user_id: User ID to filter recipients
+            provider: Provider name (kira, cobre, supra)
 
         Returns:
             List of RecipientResponse objects
@@ -74,16 +78,17 @@ class CassandraClient:
         req_path = f"{BASE_PAYOUTS_PATH}{PATH_SEPARATOR}{account}/recipient"
         response_data = self._agent.get(
             req_path=req_path,
-            query_params={"user_id": user_id},
+            query_params={"user_id": user_id, "provider": provider},
         )
         return self._parse_recipients_response(response_data)
 
-    def get_balance(self, account: str, wallet_id: str) -> BalanceResponse:
+    def get_balance(self, account: str, wallet_id: str, provider: str = "kira") -> BalanceResponse:
         """Get balance for a wallet.
 
         Args:
             account: Account type (e.g., 'transfer', 'pay')
             wallet_id: Wallet ID
+            provider: Provider name (kira, cobre, supra). Defaults to "kira"
 
         Returns:
             BalanceResponse containing balance information
@@ -92,7 +97,10 @@ class CassandraClient:
             CassandraAPIClientError: If API call fails
         """
         req_path = f"{BASE_PAYOUTS_PATH}{PATH_SEPARATOR}{account}/wallets{PATH_SEPARATOR}{wallet_id}/balances"
-        response_data = self._agent.get(req_path=req_path)
+        response_data = self._agent.get(
+            req_path=req_path,
+            query_params={"provider": provider},
+        )
         return BalanceResponse(**response_data)
 
     def create_payout(self, account: str, payout_data: PayoutCreateRequest) -> PayoutResponse:

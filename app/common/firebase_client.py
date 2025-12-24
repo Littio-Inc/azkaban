@@ -38,7 +38,9 @@ class FirebaseClient:
             FirebaseError: If token verification fails
         """
         try:
-            return auth.verify_id_token(id_token)
+            # Allow up to 10 seconds of clock skew to handle time synchronization issues
+            # between client and server (especially in Docker containers)
+            return auth.verify_id_token(id_token, clock_skew_seconds=10)
         except auth.ExpiredIdTokenError as exc:
             logger.error("Firebase ID token expired", exc_info=exc)
             raise ValueError("Token expired") from exc

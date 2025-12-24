@@ -30,6 +30,7 @@ TOKEN_USDC = "USDC"
 USER_ID_TEST = "user123"
 WALLET_ID_TEST = "wallet123"
 RECIPIENT_ID_TEST = "rec123"
+PROVIDER_KIRA = "kira"
 API_ERROR_MSG = "API error"
 UNEXPECTED_ERROR_MSG = "Unexpected error"
 PATCH_PATH = "app.monetization.service.CassandraClient"
@@ -59,11 +60,13 @@ class TestMonetizationService(unittest.TestCase):
         )
         mock_client.get_quote.return_value = expected_quote
 
-        result = MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+        result = MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, PROVIDER_KIRA)
 
         self.assertEqual(result.quote_id, expected_quote.quote_id)
         self.assertEqual(result.quote_amount, expected_quote.quote_amount)
-        mock_client.get_quote.assert_called_once_with(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+        mock_client.get_quote.assert_called_once_with(
+            ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, PROVIDER_KIRA
+        )
 
     @patch(PATCH_PATH)
     def test_get_quote_api_error(self, mock_client_class):
@@ -73,7 +76,7 @@ class TestMonetizationService(unittest.TestCase):
         mock_client.get_quote.side_effect = CassandraAPIClientError(API_ERROR_MSG)
 
         with self.assertRaises(CassandraAPIClientError):
-            MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+            MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, PROVIDER_KIRA)
 
     @patch(PATCH_PATH)
     def test_get_recipients_success(self, mock_client_class):
@@ -96,11 +99,11 @@ class TestMonetizationService(unittest.TestCase):
         ]
         mock_client.get_recipients.return_value = expected_recipients
 
-        result = MonetizationService.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST)
+        result = MonetizationService.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST, PROVIDER_KIRA)
 
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0].recipient_id, "1")
-        mock_client.get_recipients.assert_called_once_with(ACCOUNT_TRANSFER, USER_ID_TEST)
+        mock_client.get_recipients.assert_called_once_with(ACCOUNT_TRANSFER, USER_ID_TEST, PROVIDER_KIRA)
 
     @patch(PATCH_PATH)
     def test_get_recipients_api_error(self, mock_client_class):
@@ -110,7 +113,7 @@ class TestMonetizationService(unittest.TestCase):
         mock_client.get_recipients.side_effect = CassandraAPIClientError(API_ERROR_MSG)
 
         with self.assertRaises(CassandraAPIClientError):
-            MonetizationService.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST)
+            MonetizationService.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST, PROVIDER_KIRA)
 
     @patch(PATCH_PATH)
     def test_get_balance_success(self, mock_client_class):
@@ -130,7 +133,7 @@ class TestMonetizationService(unittest.TestCase):
 
         self.assertEqual(result.wallet_id, expected_balance.wallet_id)
         self.assertEqual(len(result.balances), 1)
-        mock_client.get_balance.assert_called_once_with(ACCOUNT_TRANSFER, WALLET_ID_TEST)
+        mock_client.get_balance.assert_called_once_with(ACCOUNT_TRANSFER, WALLET_ID_TEST, PROVIDER_KIRA)
 
     @patch(PATCH_PATH)
     def test_get_balance_api_error(self, mock_client_class):
@@ -156,6 +159,7 @@ class TestMonetizationService(unittest.TestCase):
             quote_id=QUOTE_ID_TEST,
             quote=create_test_quote_response(),
             token=TOKEN_USDC,
+            provider=PROVIDER_KIRA,
         )
         expected_response = PayoutResponse(
             payout_id="payout123",
@@ -192,6 +196,7 @@ class TestMonetizationService(unittest.TestCase):
             quote_id=QUOTE_ID_TEST,
             quote=create_test_quote_response(),
             token=TOKEN_USDC,
+            provider=PROVIDER_KIRA,
         )
         mock_client.create_payout.side_effect = CassandraAPIClientError(API_ERROR_MSG)
 
@@ -204,7 +209,7 @@ class TestMonetizationService(unittest.TestCase):
         mock_client_class.side_effect = MissingCredentialsError("Missing credentials")
 
         with self.assertRaises(MissingCredentialsError):
-            MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+            MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, PROVIDER_KIRA)
 
     @patch(PATCH_PATH)
     def test_get_quote_unexpected_error(self, mock_client_class):
@@ -214,7 +219,7 @@ class TestMonetizationService(unittest.TestCase):
         mock_client.get_quote.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
 
         with self.assertRaises(ValueError):
-            MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+            MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, PROVIDER_KIRA)
 
     @patch(PATCH_PATH)
     def test_get_recipients_unexpected_error(self, mock_client_class):
@@ -224,7 +229,7 @@ class TestMonetizationService(unittest.TestCase):
         mock_client.get_recipients.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
 
         with self.assertRaises(ValueError):
-            MonetizationService.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST)
+            MonetizationService.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST, PROVIDER_KIRA)
 
     @patch(PATCH_PATH)
     def test_get_balance_unexpected_error(self, mock_client_class):
@@ -250,6 +255,7 @@ class TestMonetizationService(unittest.TestCase):
             quote_id=QUOTE_ID_TEST,
             quote=create_test_quote_response(),
             token=TOKEN_USDC,
+            provider=PROVIDER_KIRA,
         )
         mock_client.create_payout.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
 

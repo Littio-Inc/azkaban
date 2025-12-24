@@ -90,7 +90,7 @@ class TestFirebaseClient(unittest.TestCase):
 
                     result = client.verify_id_token("valid-token")
                     self.assertEqual(result, mock_decoded)
-                    mock_verify.assert_called_once_with("valid-token")
+                    mock_verify.assert_called_once_with("valid-token", clock_skew_seconds=10)
 
     @patch("app.common.firebase_client.auth.verify_id_token")
     def test_verify_id_token_invalid(self, mock_verify):

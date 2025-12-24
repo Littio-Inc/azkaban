@@ -92,7 +92,7 @@ class TestCassandraClient(unittest.TestCase):
         }
 
         client = CassandraClient()
-        result = client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+        result = client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, "kira")
 
         self.assertIsInstance(result, QuoteResponse)
         self.assertEqual(result.quote_id, QUOTE_ID_TEST)
@@ -109,7 +109,7 @@ class TestCassandraClient(unittest.TestCase):
 
         client = CassandraClient()
         with self.assertRaises(CassandraAPIClientError):
-            client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+            client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, "kira")
 
     @patch(PATCH_AGENT)
     @patch(PATCH_SECRETS)
@@ -128,7 +128,7 @@ class TestCassandraClient(unittest.TestCase):
         ]
 
         client = CassandraClient()
-        result = client.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST)
+        result = client.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST, "kira")
 
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 1)
@@ -149,7 +149,7 @@ class TestCassandraClient(unittest.TestCase):
         }
 
         client = CassandraClient()
-        result = client.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST)
+        result = client.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST, "kira")
 
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 1)
@@ -205,6 +205,7 @@ class TestCassandraClient(unittest.TestCase):
             quote_id=QUOTE_ID_TEST,
             quote=create_test_quote_response(),
             token="USDC",
+            provider="kira",
         )
 
         client = CassandraClient()
@@ -245,7 +246,7 @@ class TestCassandraClient(unittest.TestCase):
         mock_agent.get.side_effect = get_side_effect
 
         client = CassandraClient()
-        client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+        client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, "kira")
 
         # Verify that get was called (which internally calls _authenticate)
         mock_agent.get.assert_called_once()
@@ -279,7 +280,7 @@ class TestCassandraClient(unittest.TestCase):
         mock_agent._api_key_is_valid = True
 
         client = CassandraClient()
-        client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+        client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, "kira")
 
         # update_headers should not be called if already authenticated
         # But get should still be called
@@ -296,7 +297,7 @@ class TestCassandraClient(unittest.TestCase):
 
         client = CassandraClient()
         with self.assertRaises(ValueError):
-            client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+            client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, "kira")
 
     @patch(PATCH_AGENT)
     @patch(PATCH_SECRETS)
@@ -309,5 +310,5 @@ class TestCassandraClient(unittest.TestCase):
 
         client = CassandraClient()
         with self.assertRaises(TypeError):
-            client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP)
+            client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, "kira")
 
