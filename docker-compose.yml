@@ -1,6 +1,7 @@
-# Docker Compose for Azkaban (Authentication Service)
-# Standalone configuration - independent repository
+# Docker Compose para DESARROLLO LOCAL únicamente
+# Este archivo NO debe usarse en producción
 #
+# Standalone configuration - independent repository
 # NOTE: Database (PostgreSQL) is managed in ministry/docker-compose.yml
 # This service connects to the database service from ministry
 
@@ -29,8 +30,11 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@littio.co}
       FIXED_OTP_CODE: ${FIXED_OTP_CODE:-123456}
-      CASSANDRA_API_URL: ${CASSANDRA_API_URL:-http://host.docker.internal:3000}
+      CASSANDRA_API_URL: ${CASSANDRA_API_URL:-http://cassandra-api:3000}
       CASSANDRA_API_KEY: ${CASSANDRA_API_KEY:-}
+      # Kira user IDs for recipients (different from Azkaban user IDs)
+      KIRA_USER_ID_TRANSFER: ${KIRA_USER_ID_TRANSFER:-}
+      KIRA_USER_ID_PAY: ${KIRA_USER_ID_PAY:-}
     ports:
       - "8001:8000"
     networks:

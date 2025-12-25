@@ -139,6 +139,34 @@ class CassandraAgent(RESTfulAPIAgent):
         try:
             return self.make_request(params)
         except HTTPError as http_exception:
-            raise CassandraAPIClientError(f"Error calling Cassandra API: {http_exception}") from http_exception
+            status_code, error_detail = self._extract_error_details(http_exception)
+            error_message = f"Error calling Cassandra API: {http_exception}"
+            raise CassandraAPIClientError(
+                error_message,
+                status_code=status_code,
+                error_detail=error_detail,
+            ) from http_exception
         except Exception as error:  # noqa: BLE001
-            raise CassandraAPIClientError(f"Unexpected error calling Cassandra API: {str(error)}") from error
+            error_message = f"Unexpected error calling Cassandra API: {error}"
+            raise CassandraAPIClientError(error_message) from error
+
+    def _extract_error_details(self, http_exception: HTTPError) -> tuple[int | None, dict | None]:
+        """Extract status code and error detail from HTTP exception.
+
+        Args:
+            http_exception: HTTP exception from API call
+
+        Returns:
+            tuple[int | None, dict | None]: Status code and error detail
+        """
+        if not hasattr(http_exception, "response") or http_exception.response is None:
+            return None, None
+
+        status_code = http_exception.response.status_code
+        try:
+            error_detail = http_exception.response.json()
+        except Exception:  # noqa: BLE001
+            # If response is not JSON, use text
+            error_detail = {"message": http_exception.response.text}
+
+        return status_code, error_detail

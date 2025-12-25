@@ -22,6 +22,7 @@ class QuoteResponse(BaseModel):
     expiration_ts_utc: str = Field(..., description="Expiration timestamp UTC")
     network: str | None = Field(None, description="Blockchain network")
     network_fee: Decimal | None = Field(None, description="Network fee for blockchain transactions")
+    spread: Decimal | None = Field(None, description="Spread in basis points")
 
     class Config:
         """Pydantic configuration."""
@@ -86,6 +87,8 @@ class PayoutCreateRequest(BaseModel):
     quote_id: str = Field(..., description="UUID of the quote to use for the payout")
     quote: QuoteResponse = Field(..., description="Full quote object")
     token: str = Field(..., description="Token type to use for the payout (USDC or USDT)")
+    provider: str = Field(..., description="Provider name (kira, cobre, supra)")
+    user_id: str | None = Field(None, description="User ID from database (optional, will be set by Azkaban)")
 
     class Config:
         """Pydantic PayoutCreateRequest configuration."""

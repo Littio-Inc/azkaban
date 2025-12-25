@@ -32,6 +32,7 @@ def _call_get_quote(
     amount: float,
     base_currency: str,
     quote_currency: str,
+    provider: str,
 ) -> QuoteResponse:
     """Call get_quote on client.
 
@@ -40,40 +41,43 @@ def _call_get_quote(
         amount: Amount to convert
         base_currency: Source currency code
         quote_currency: Target currency code
+        provider: Provider name (kira, cobre, supra)
 
     Returns:
         QuoteResponse object
     """
     client = _get_client()
-    return client.get_quote(account, amount, base_currency, quote_currency)
+    return client.get_quote(account, amount, base_currency, quote_currency, provider)
 
 
-def _call_get_recipients(account: str, user_id: str) -> list[RecipientResponse]:
+def _call_get_recipients(account: str, user_id: str, provider: str) -> list[RecipientResponse]:
     """Call get_recipients on client.
 
     Args:
         account: Account type
         user_id: User ID to filter recipients
+        provider: Provider name (kira, cobre, supra)
 
     Returns:
         List of RecipientResponse objects
     """
     client = _get_client()
-    return client.get_recipients(account, user_id)
+    return client.get_recipients(account, user_id, provider)
 
 
-def _call_get_balance(account: str, wallet_id: str) -> BalanceResponse:
+def _call_get_balance(account: str, wallet_id: str, provider: str = "kira") -> BalanceResponse:
     """Call get_balance on client.
 
     Args:
         account: Account type
         wallet_id: Wallet ID
+        provider: Provider name (kira, cobre, supra). Defaults to "kira"
 
     Returns:
         BalanceResponse object
     """
     client = _get_client()
-    return client.get_balance(account, wallet_id)
+    return client.get_balance(account, wallet_id, provider)
 
 
 def _call_create_payout(account: str, payout_data: PayoutCreateRequest) -> PayoutResponse:
@@ -99,6 +103,7 @@ class MonetizationService:
         amount: float,
         base_currency: str,
         quote_currency: str,
+        provider: str,
     ) -> QuoteResponse:
         """Get a quote for currency conversion.
 
@@ -107,6 +112,7 @@ class MonetizationService:
             amount: Amount to convert
             base_currency: Source currency code
             quote_currency: Target currency code
+            provider: Provider name (kira, cobre, supra)
 
         Returns:
             QuoteResponse containing quote information
@@ -116,7 +122,7 @@ class MonetizationService:
             CassandraAPIClientError: If API call fails
         """
         try:
-            return _call_get_quote(account, amount, base_currency, quote_currency)
+            return _call_get_quote(account, amount, base_currency, quote_currency, provider)
         except CassandraAPIClientError as api_error:
             logger.error(f"Cassandra API error getting quote: {api_error}")
             raise
@@ -125,12 +131,13 @@ class MonetizationService:
             raise
 
     @staticmethod
-    def get_recipients(account: str, user_id: str) -> list[RecipientResponse]:
+    def get_recipients(account: str, user_id: str, provider: str) -> list[RecipientResponse]:
         """Get recipients for an account.
 
         Args:
             account: Account type (e.g., 'transfer', 'pay')
             user_id: User ID to filter recipients
+            provider: Provider name (kira, cobre, supra)
 
         Returns:
             List of RecipientResponse objects
@@ -140,7 +147,7 @@ class MonetizationService:
             CassandraAPIClientError: If API call fails
         """
         try:
-            return _call_get_recipients(account, user_id)
+            return _call_get_recipients(account, user_id, provider)
         except CassandraAPIClientError as api_error:
             logger.error(f"Cassandra API error getting recipients: {api_error}")
             raise
@@ -149,12 +156,13 @@ class MonetizationService:
             raise
 
     @staticmethod
-    def get_balance(account: str, wallet_id: str) -> BalanceResponse:
+    def get_balance(account: str, wallet_id: str, provider: str = "kira") -> BalanceResponse:
         """Get balance for a wallet.
 
         Args:
             account: Account type (e.g., 'transfer', 'pay')
             wallet_id: Wallet ID
+            provider: Provider name (kira, cobre, supra). Defaults to "kira"
 
         Returns:
             BalanceResponse containing balance information
@@ -164,7 +172,7 @@ class MonetizationService:
             CassandraAPIClientError: If API call fails
         """
         try:
-            return _call_get_balance(account, wallet_id)
+            return _call_get_balance(account, wallet_id, provider)
         except CassandraAPIClientError as api_error:
             logger.error(f"Cassandra API error getting balance: {api_error}")
             raise
