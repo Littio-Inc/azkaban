@@ -290,6 +290,107 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertIn("amount", sent_data)
         self.assertIn("currency", sent_data)
 
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_get_backoffice_transactions_with_movement_type(self, mock_client_class):
+        """Test getting transactions with movement_type in response."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_transactions_data = {
+            "transactions": [
+                {
+                    "id": "f5f99656-6b5c-40d9-8d4d-8ab1f7feca98",
+                    "transaction_id": "0891c79b-20a6-4daf-a885-331f08b9f8cd",
+                    "created_at": "2025-11-28T16:58:16.773000",
+                    "type": "transfer",
+                    "provider": "fireblocks",
+                    "amount": "0.3000",
+                    "currency": "USD",
+                    "movementType": "credit",  # Testing camelCase alias
+                }
+            ],
+            "count": 1,
+            "total_count": 1,
+            "page": 1,
+            "limit": 10,
+        }
+
+        mock_client = mock_client_class.return_value
+        mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
+
+        response = self.client.get("/v1/backoffice/transactions?page=1&limit=10")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["count"], 1)
+        self.assertEqual(len(data["transactions"]), 1)
+        # Verify movement_type is accessible via snake_case
+        self.assertEqual(data["transactions"][0]["movement_type"], "credit")
+
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_get_backoffice_transactions_with_movement_type_snake_case(self, mock_client_class):
+        """Test getting transactions with movement_type in snake_case format."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_transactions_data = {
+            "transactions": [
+                {
+                    "id": "f5f99656-6b5c-40d9-8d4d-8ab1f7feca98",
+                    "type": "transfer",
+                    "provider": "fireblocks",
+                    "movement_type": "debit",  # Testing snake_case
+                }
+            ],
+            "count": 1,
+            "total_count": 1,
+            "page": 1,
+            "limit": 10,
+        }
+
+        mock_client = mock_client_class.return_value
+        mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
+
+        response = self.client.get("/v1/backoffice/transactions?page=1&limit=10")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["transactions"][0]["movement_type"], "debit")
+
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_create_backoffice_transaction_with_movement_type(self, mock_client_class):
+        """Test creating transaction with movement_type field."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        transaction_id = fake.uuid4()
+        mock_transaction_response = {
+            "id": transaction_id
+        }
+
+        mock_client = mock_client_class.return_value
+        mock_client.create_transaction.return_value = CreateTransactionResponse(**mock_transaction_response)
+
+        transaction_data = {
+            "type": fake.random_element(elements=("withdrawal", "deposit", "transfer")),
+            "provider": fake.random_element(elements=("kira", "fireblocks", "circle")),
+            "amount": str(fake.pydecimal(left_digits=2, right_digits=2, positive=True)),
+            "currency": fake.currency_code(),
+            "movement_type": fake.random_element(elements=("credit", "debit")),
+        }
+
+        response = self.client.post(
+            "/v1/backoffice/transactions",
+            json=transaction_data
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], transaction_id)
+        mock_client.create_transaction.assert_called_once()
+        call_args = mock_client.create_transaction.call_args
+        # Verify movement_type is included in the request
+        body_data = call_args[0][0]
+        self.assertIn("movement_type", body_data)
+        self.assertEqual(body_data["movement_type"], transaction_data["movement_type"])
+
 
 if __name__ == "__main__":
     unittest.main()
