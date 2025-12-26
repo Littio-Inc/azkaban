@@ -48,6 +48,7 @@ class CreateTransactionRequest(BaseModel):
     method: str | None = None
     status: str | None = None
     origin_provider: str | None = None
+    movement_type: str | None = None
     idempotency_key: str | None = None
 
 

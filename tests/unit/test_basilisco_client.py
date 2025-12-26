@@ -88,6 +88,63 @@ class TestBasiliscoClient(unittest.TestCase):
             idempotency_key=None
         )
 
+    @patch(PATCH_AGENT)
+    def test_get_transactions_with_movement_type(self, mock_agent_class):
+        """Test getting transactions with movement_type field."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = {
+            "transactions": [
+                {
+                    "id": "1",
+                    "amount": "100",
+                    "movementType": "credit",  # Testing camelCase alias
+                }
+            ],
+            "count": 1,
+            "page": 1,
+            "limit": 10,
+        }
+        mock_agent.get.return_value = mock_response_data
+
+        client = BasiliscoClient()
+        result = client.get_transactions()
+
+        self.assertIsInstance(result, TransactionsResponse)
+        self.assertEqual(result.count, 1)
+        self.assertEqual(len(result.transactions), 1)
+        # Verify movement_type is accessible via snake_case
+        self.assertEqual(result.transactions[0].movement_type, "credit")
+
+    @patch(PATCH_AGENT)
+    def test_create_transaction_with_movement_type(self, mock_agent_class):
+        """Test creating transaction with movement_type field."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        transaction_id = "test-transaction-id"
+        mock_response_data = {"id": transaction_id}
+        mock_agent.post.return_value = mock_response_data
+
+        transaction_data = {
+            "type": "withdrawal",
+            "amount": "1.30",
+            "currency": "USD",
+            "movement_type": "debit",
+        }
+
+        client = BasiliscoClient()
+        result = client.create_transaction(transaction_data)
+
+        self.assertIsInstance(result, CreateTransactionResponse)
+        self.assertEqual(result.id, transaction_id)
+        mock_agent.post.assert_called_once_with(
+            req_path="/v1/backoffice/transactions",
+            json=transaction_data,
+            idempotency_key=None
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
