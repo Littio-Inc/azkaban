@@ -60,3 +60,4 @@ class TransactionFilters(BaseModel):
     exclude_provider: List[str] | None = Field(None, description="List of providers to exclude")
     date_from: datetime | None = Field(None, description="Start date for filtering transactions (ISO format)")
     date_to: datetime | None = Field(None, description="End date for filtering transactions (ISO format)")
+    movement_type: str | None = Field(None, description="Filter by movement type (e.g., 'monetization', 'internal')")

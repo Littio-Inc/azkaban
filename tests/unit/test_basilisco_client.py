@@ -145,6 +145,30 @@ class TestBasiliscoClient(unittest.TestCase):
             idempotency_key=None
         )
 
+    @patch(PATCH_AGENT)
+    def test_get_transactions_with_movement_type_filter(self, mock_agent_class):
+        """Test getting transactions with movement_type filter."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = {
+            "transactions": [{"id": "1", "amount": "100", "movement_type": "monetization"}],
+            "count": 1,
+            "page": 1,
+            "limit": 10,
+        }
+        mock_agent.get.return_value = mock_response_data
+
+        client = BasiliscoClient()
+        result = client.get_transactions(filters={"movement_type": "monetization"}, page=1, limit=10)
+
+        self.assertIsInstance(result, TransactionsResponse)
+        self.assertEqual(result.count, 1)
+        mock_agent.get.assert_called_once_with(
+            req_path="/v1/backoffice/transactions",
+            query_params={"page": 1, "limit": 10, "movement_type": "monetization"}
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

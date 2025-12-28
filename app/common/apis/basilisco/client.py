@@ -11,6 +11,7 @@ FILTER_KEY_PROVIDER = "provider"
 FILTER_KEY_EXCLUDE_PROVIDER = "exclude_provider"
 FILTER_KEY_DATE_FROM = "date_from"
 FILTER_KEY_DATE_TO = "date_to"
+FILTER_KEY_MOVEMENT_TYPE = "movement_type"
 
 
 class BasiliscoClient:
@@ -36,7 +37,7 @@ class BasiliscoClient:
 
         Args:
             filters: Dictionary with optional filters: provider, exclude_provider,
-                    date_from (datetime), date_to (datetime)
+                    date_from (datetime), date_to (datetime), movement_type (str)
             page: Page number (default: 1)
             limit: Number of results per page (default: 10)
 
@@ -61,6 +62,7 @@ class BasiliscoClient:
         self._add_filter_to_params(filters, FILTER_KEY_EXCLUDE_PROVIDER, query_params)
         self._add_date_filter_to_params(filters, FILTER_KEY_DATE_FROM, query_params)
         self._add_date_filter_to_params(filters, FILTER_KEY_DATE_TO, query_params)
+        self._add_filter_to_params(filters, FILTER_KEY_MOVEMENT_TYPE, query_params)
 
         response_data = self._agent.get(
             req_path=BASE_TRANSACTIONS_PATH,
