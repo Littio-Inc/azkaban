@@ -291,6 +291,40 @@ class TestBasiliscoRoutes(unittest.TestCase):
         self.assertIn("currency", sent_data)
 
     @patch("app.routes.basilisco_routes.BasiliscoClient")
+    def test_get_backoffice_transactions_with_movement_type_filter(self, mock_client_class):
+        """Test getting transactions with movement_type filter."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_transactions_data = {
+            "transactions": [
+                {
+                    "id": "f5f99656-6b5c-40d9-8d4d-8ab1f7feca98",
+                    "type": "transfer",
+                    "provider": "fireblocks",
+                    "movement_type": "monetization",
+                }
+            ],
+            "count": 1,
+            "total_count": 1,
+            "page": 1,
+            "limit": 10,
+        }
+
+        mock_client = mock_client_class.return_value
+        mock_client.get_transactions.return_value = TransactionsResponse(**mock_transactions_data)
+
+        response = self.client.get("/v1/backoffice/transactions?movement_type=monetization&page=1&limit=10")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["count"], 1)
+        mock_client.get_transactions.assert_called_once_with(
+            filters={"movement_type": "monetization"},
+            page=1,
+            limit=10
+        )
+
+    @patch("app.routes.basilisco_routes.BasiliscoClient")
     def test_get_backoffice_transactions_with_movement_type(self, mock_client_class):
         """Test getting transactions with movement_type in response."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user

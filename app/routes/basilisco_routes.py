@@ -114,6 +114,9 @@ def get_backoffice_transactions(  # noqa: WPS211
     date_to: datetime | None = Query(  # noqa: WPS404
         None, description="End date for filtering transactions (ISO format)"
     ),
+    movement_type: str | None = Query(  # noqa: WPS404
+        None, description="Filter by movement type (e.g., 'monetization', 'internal')"
+    ),
     page: int = Query(DEFAULT_PAGE, ge=MIN_PAGE, description="Page number"),  # noqa: WPS404
     limit: int = Query(  # noqa: WPS404
         DEFAULT_LIMIT, ge=MIN_LIMIT, le=MAX_LIMIT, description="Number of results per page"
@@ -129,6 +132,7 @@ def get_backoffice_transactions(  # noqa: WPS211
         exclude_provider: Optional list of providers to exclude
         date_from: Optional start date for filtering transactions (ISO format)
         date_to: Optional end date for filtering transactions (ISO format)
+        movement_type: Optional movement type filter (e.g., 'monetization', 'internal')
         page: Page number (default: 1, minimum: 1)
         limit: Number of results per page (default: 10, minimum: 1, maximum: 100)
         current_user: Current authenticated user
@@ -144,16 +148,18 @@ def get_backoffice_transactions(  # noqa: WPS211
         exclude_provider=exclude_provider,
         date_from=date_from,
         date_to=date_to,
+        movement_type=movement_type,
     )
     logger.info(
         (
             "Getting backoffice transactions - provider: %s, exclude_provider: %s, "
-            "date_from: %s, date_to: %s, page: %s, limit: %s"
+            "date_from: %s, date_to: %s, movement_type: %s, page: %s, limit: %s"
         ),
         provider,
         exclude_provider,
         date_from,
         date_to,
+        movement_type,
         page,
         limit
     )
