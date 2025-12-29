@@ -514,3 +514,63 @@ def create_payout(
             detail="Error creating payout in monetization service",
         ) from exc
     return payout_response.model_dump()
+
+
+@router.get("/payouts/account/{account}/payout")
+def get_payout_history(
+    account: str,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Get payout history for an account.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        account: Account type (e.g., 'transfer', 'pay')
+        current_user: Current authenticated user
+
+    Returns:
+        PayoutHistoryResponse: Payout history response from Cassandra
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Getting payout history - account: {account}")
+
+    try:
+        payout_history = MonetizationService.get_payout_history(account)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cass_err:
+        error_status_code = cass_err.status_code or status.HTTP_502_BAD_GATEWAY
+        error_detail = cass_err.error_detail or {}
+        logger.exception(
+            "Error getting payout history from Cassandra API (status: %s): %s",
+            error_status_code,
+            cass_err,
+        )
+        if error_detail:
+            error_message, error_code = _extract_error_from_detail(error_detail)
+        else:
+            error_message = str(cass_err) or "Error retrieving payout history from Cassandra API"
+            error_code = "CASSANDRA_API_ERROR"
+        raise HTTPException(
+            status_code=error_status_code,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: error_message,
+                    CODE_KEY: error_code,
+                },
+            },
+        ) from cass_err
+    except Exception as exc:
+        logger.exception("Error getting payout history from monetization service: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error retrieving payout history from monetization service",
+        ) from exc
+    return payout_history.model_dump()

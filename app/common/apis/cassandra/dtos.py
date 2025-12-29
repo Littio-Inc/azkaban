@@ -123,3 +123,46 @@ class PayoutResponse(BaseModel):
         json_encoders = {
             Decimal: str,
         }
+
+
+class PayoutHistoryItem(BaseModel):
+    """Model for individual payout history item."""
+
+    id: str = Field(..., description="Payout's unique identifier")
+    created_at: str = Field(..., description="Payout creation timestamp")
+    updated_at: str = Field(..., description="Payout last update timestamp")
+    initial_currency: str = Field(..., description="Initial currency code")
+    final_currency: str = Field(..., description="Final currency code")
+    initial_amount: str = Field(..., description="Initial amount")
+    final_amount: str = Field(..., description="Final amount")
+    rate: str = Field(..., description="Exchange rate")
+    status: str = Field(..., description="Payout status")
+    user_id: str | None = Field(None, description="ID of the user")
+    provider: int = Field(..., description="Provider identifier")
+    provider_external_id: str | None = Field(None, description="External ID from provider")
+    provider_response: dict | None = Field(None, description="Provider response data")
+    provider_webhook: dict | None = Field(None, description="Provider webhook data")
+    additional_data: dict | None = Field(None, description="Additional data")
+
+    class Config:
+        """Pydantic PayoutHistoryItem configuration."""
+
+        json_encoders = {
+            Decimal: str,
+        }
+
+
+class PayoutHistoryResponse(BaseModel):
+    """Response model for payout history operations."""
+
+    status: str = Field(..., description="Response status")
+    message: str = Field(..., description="Response message")
+    data: list[PayoutHistoryItem] = Field(..., description="List of payout history items")
+    count: int | None = Field(None, description="Total count of payouts")
+
+    class Config:
+        """Pydantic PayoutHistoryResponse configuration."""
+
+        json_encoders = {
+            Decimal: str,
+        }
