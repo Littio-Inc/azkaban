@@ -4,6 +4,7 @@ from app.common.apis.cassandra.agent import BASE_PAYOUTS_PATH, CassandraAgent
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
     PayoutCreateRequest,
+    PayoutHistoryResponse,
     PayoutResponse,
     QuoteResponse,
     RecipientResponse,
@@ -126,6 +127,22 @@ class CassandraClient:
             json=payload,
         )
         return PayoutResponse(**response_data)
+
+    def get_payout_history(self, account: str) -> PayoutHistoryResponse:
+        """Get payout history for an account.
+
+        Args:
+            account: Account type (e.g., 'transfer', 'pay')
+
+        Returns:
+            PayoutHistoryResponse containing payout history information
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"{BASE_PAYOUTS_PATH}{PATH_SEPARATOR}{account}/payout"
+        response_data = self._agent.get(req_path=req_path)
+        return PayoutHistoryResponse(**response_data)
 
     def _parse_recipients_response(self, response_data: dict | list) -> list[RecipientResponse]:
         """Parse recipients response from API.

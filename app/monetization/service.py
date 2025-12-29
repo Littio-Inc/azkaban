@@ -6,6 +6,7 @@ from app.common.apis.cassandra.client import CassandraClient
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
     PayoutCreateRequest,
+    PayoutHistoryResponse,
     PayoutResponse,
     QuoteResponse,
     RecipientResponse,
@@ -92,6 +93,19 @@ def _call_create_payout(account: str, payout_data: PayoutCreateRequest) -> Payou
     """
     client = _get_client()
     return client.create_payout(account, payout_data)
+
+
+def _call_get_payout_history(account: str) -> PayoutHistoryResponse:
+    """Call get_payout_history on client.
+
+    Args:
+        account: Account type
+
+    Returns:
+        PayoutHistoryResponse containing payout history information
+    """
+    client = _get_client()
+    return client.get_payout_history(account)
 
 
 class MonetizationService:
@@ -202,4 +216,27 @@ class MonetizationService:
             raise
         except Exception as exc:
             logger.error(f"Unexpected error creating payout: {exc}")
+            raise
+
+    @staticmethod
+    def get_payout_history(account: str) -> PayoutHistoryResponse:
+        """Get payout history for an account.
+
+        Args:
+            account: Account type (e.g., 'transfer', 'pay')
+
+        Returns:
+            PayoutHistoryResponse containing payout history information
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_get_payout_history(account)
+        except CassandraAPIClientError as api_error:
+            logger.exception("Cassandra API error getting payout history: %s", api_error)
+            raise
+        except Exception as exc:
+            logger.exception("Unexpected error getting payout history: %s", exc)
             raise
