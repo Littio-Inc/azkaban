@@ -574,3 +574,165 @@ def get_payout_history(
             detail="Error retrieving payout history from monetization service",
         ) from exc
     return payout_history.model_dump()
+
+
+@router.get("/opentrade/vaultsAccount/{vault_address}/{account_address}")
+def get_vault_account(
+    vault_address: str,
+    account_address: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get vault account information.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        vault_address: Vault address
+        account_address: Account address
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Vault account information from Cassandra (as dict for JSON response)
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Getting vault account - vault_address: {vault_address}, account_address: {account_address}")
+
+    try:
+        vault_account_data = MonetizationService.get_vault_account(vault_address, account_address)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
+        error_detail = cassandra_error.error_detail or {}
+        logger.exception(
+            f"Error getting vault account from Cassandra API (status: {error_status_code}): {cassandra_error}",
+        )
+        error_message, error_code = _extract_error_from_detail(error_detail)
+        raise HTTPException(
+            status_code=error_status_code,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: error_message,
+                    CODE_KEY: error_code,
+                },
+            },
+        ) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error getting vault account from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error retrieving vault account from monetization service",
+        ) from exc
+    return vault_account_data.model_dump()
+
+
+@router.get("/opentrade/vaults")
+def get_vaults_list(
+    current_user: dict = Depends(get_current_user),
+):
+    """Get list of vaults.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        dict: List of vaults from Cassandra (as dict for JSON response)
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info("Getting vaults list")
+
+    try:
+        vaults_list_data = MonetizationService.get_vaults_list()
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
+        error_detail = cassandra_error.error_detail or {}
+        logger.exception(
+            f"Error getting vaults list from Cassandra API (status: {error_status_code}): {cassandra_error}",
+        )
+        error_message, error_code = _extract_error_from_detail(error_detail)
+        raise HTTPException(
+            status_code=error_status_code,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: error_message,
+                    CODE_KEY: error_code,
+                },
+            },
+        ) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error getting vaults list from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error retrieving vaults list from monetization service",
+        ) from exc
+    return vaults_list_data.model_dump()
+
+
+@router.get("/opentrade/vaults/{vault_address}")
+def get_vault_overview(
+    vault_address: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get vault overview information.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        vault_address: Vault address
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Vault overview information from Cassandra (as dict for JSON response)
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Getting vault overview - vault_address: {vault_address}")
+
+    try:
+        vault_overview_data = MonetizationService.get_vault_overview(vault_address)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
+        error_detail = cassandra_error.error_detail or {}
+        logger.exception(
+            f"Error getting vault overview from Cassandra API (status: {error_status_code}): {cassandra_error}",
+        )
+        error_message, error_code = _extract_error_from_detail(error_detail)
+        raise HTTPException(
+            status_code=error_status_code,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: error_message,
+                    CODE_KEY: error_code,
+                },
+            },
+        ) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error getting vault overview from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Error retrieving vault overview from monetization service",
+        ) from exc
+    return vault_overview_data.model_dump()

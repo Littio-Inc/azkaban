@@ -166,3 +166,228 @@ class PayoutHistoryResponse(BaseModel):
         json_encoders = {
             Decimal: str,
         }
+
+
+# OpenTrade DTOs
+class CollateralSetCTO(BaseModel):
+    """Model for collateral set CTO."""
+
+    exchange_rate_automation: str = Field(
+        ..., alias="exchangeRateAutomation", description="Exchange rate automation type"
+    )
+    timestamp: int = Field(..., description="Timestamp")
+    collateral: list = Field(default_factory=list, description="List of collateral")
+    pool_addr: str = Field(..., alias="poolAddr", description="Pool address")
+
+    class Config:
+        """Pydantic configuration."""
+
+        populate_by_name = True
+
+
+class VaultAccountCTO(BaseModel):
+    """Model for vault account CTO."""
+
+    yield_type: str = Field(..., alias="yieldType", description="Yield type")
+    rollover_collateral: str = Field(..., alias="rolloverCollateral", description="Rollover collateral")
+    automatic_rollover: bool = Field(..., alias="automaticRollover", description="Automatic rollover flag")
+    early_withdrawal_processing_period: int = Field(
+        ..., alias="earlyWithdrawalProcessingPeriod", description="Early withdrawal processing period"
+    )
+    maximum_transfer_amount: int = Field(..., alias="maximumTransferAmount", description="Maximum transfer amount")
+    minimum_transfer_amount: int = Field(..., alias="minimumTransferAmount", description="Minimum transfer amount")
+    contractual_currency: str = Field(..., alias="contractualCurrency", description="Contractual currency")
+    liquidity_fee_rate: int = Field(..., alias="liquidityFeeRate", description="Liquidity fee rate")
+    platform_fee_rate: int = Field(..., alias="platformFeeRate", description="Platform fee rate")
+    advisory_fee_rate: int = Field(..., alias="advisoryFeeRate", description="Advisory fee rate")
+    transfer_out_days: int = Field(..., alias="transferOutDays", description="Transfer out days")
+    transfer_in_days: int = Field(..., alias="transferInDays", description="Transfer in days")
+    benchmark_rate: str = Field(..., alias="benchmarkRate", description="Benchmark rate")
+    collateral: list = Field(default_factory=list, description="List of collateral")
+    collateral_set_cto: CollateralSetCTO = Field(..., alias="collateralSetCTO", description="Collateral set CTO")
+    timestamp_offchain: int = Field(..., alias="timestampOffchain", description="Timestamp offchain")
+    pool_addr_offchain: str = Field(..., alias="poolAddrOffchain", description="Pool address offchain")
+    version: str = Field(..., description="Version")
+    pool_type: int = Field(..., alias="poolType", description="Pool type")
+    id: str = Field(..., description="ID")
+    timestamp: int = Field(..., description="Timestamp")
+    timestamp_date_string: str = Field(..., alias="timestampDateString", description="Timestamp date string")
+    timestamp_string: str = Field(..., alias="timestampString", description="Timestamp string")
+    day_number: int = Field(..., alias="dayNumber", description="Day number")
+    time_of_day: int = Field(..., alias="timeOfDay", description="Time of day")
+    block_number: int = Field(..., alias="blockNumber", description="Block number")
+    vault_name: str = Field(..., alias="vaultName", description="Vault name")
+    currency_label: str = Field(..., alias="currencyLabel", description="Currency label")
+    liquidity_token_symbol: str = Field(..., alias="liquidityTokenSymbol", description="Liquidity token symbol")
+    pool_addr: str = Field(..., alias="poolAddr", description="Pool address")
+    account_addr: str = Field(..., alias="accountAddr", description="Account address")
+    liquidity_asset_addr: str = Field(..., alias="liquidityAssetAddr", description="Liquidity asset address")
+    token_balance: str = Field(..., alias="tokenBalance", description="Token balance")
+    asset_balance: str = Field(..., alias="assetBalance", description="Asset balance")
+    principal_earning_interest: str = Field(
+        ..., alias="principalEarningInterest", description="Principal earning interest"
+    )
+    max_withdraw_request: str = Field(..., alias="maxWithdrawRequest", description="Max withdraw request")
+    max_redeem_request: str = Field(..., alias="maxRedeemRequest", description="Max redeem request")
+    requested_shares_of: str = Field(..., alias="requestedSharesOf", description="Requested shares of")
+    requested_assets_of: str = Field(..., alias="requestedAssetsOf", description="Requested assets of")
+    accepted_shares: str = Field(..., alias="acceptedShares", description="Accepted shares")
+    accepted_assets: str = Field(..., alias="acceptedAssets", description="Accepted assets")
+    assets_deposited: str = Field(..., alias="assetsDeposited", description="Assets deposited")
+    assets_withdrawn: str = Field(..., alias="assetsWithdrawn", description="Assets withdrawn")
+    current_asset_value: str = Field(..., alias="currentAssetValue", description="Current asset value")
+    gain_loss: str = Field(..., alias="gainLoss", description="Gain loss")
+    gain_loss_in_day: str = Field(..., alias="gainLossInDay", description="Gain loss in day")
+    credits: str = Field(..., description="Credits")
+    credits_in_day: str = Field(..., alias="creditsInDay", description="Credits in day")
+    debits: str = Field(..., description="Debits")
+    debits_in_day: str = Field(..., alias="debitsInDay", description="Debits in day")
+    fees: str = Field(..., description="Fees")
+    fees_in_day: str = Field(..., alias="feesInDay", description="Fees in day")
+    interest_rate: str = Field(..., alias="interestRate", description="Interest rate")
+    exchange_rate: str = Field(..., alias="exchangeRate", description="Exchange rate")
+    indicative_interest_rate: str = Field(..., alias="indicativeInterestRate", description="Indicative interest rate")
+    collateral_rate: str = Field(..., alias="collateralRate", description="Collateral rate")
+
+    class Config:
+        """Pydantic configuration."""
+
+        populate_by_name = True
+
+
+class VaultAccountResponse(BaseModel):
+    """Response model for vault account operations."""
+
+    vault_account_cto: VaultAccountCTO = Field(..., alias="vaultAccountCTO", description="Vault account CTO")
+    vault_address: str = Field(..., alias="vaultAddress", description="Vault address")
+    account_address: str = Field(..., alias="accountAddress", description="Account address")
+
+    class Config:
+        """Pydantic configuration."""
+
+        populate_by_name = True
+
+
+class VaultListItem(BaseModel):
+    """Model for individual vault list item."""
+
+    display_name: str = Field(..., alias="displayName", description="Display name")
+    chain_id: int = Field(..., alias="chainId", description="Chain ID")
+    contract_name: str = Field(..., alias="contractName", description="Contract name")
+    pool_type: int = Field(..., alias="poolType", description="Pool type")
+    chain_config_name: str = Field(..., alias="chainConfigName", description="Chain config name")
+    creation_block: int = Field(..., alias="creationBlock", description="Creation block")
+    creation_timestamp: int = Field(..., alias="creationTimestamp", description="Creation timestamp")
+    symbol: str = Field(..., description="Symbol")
+    name: str = Field(..., description="Name")
+    liquidity_asset_addr: str = Field(..., alias="liquidityAssetAddr", description="Liquidity asset address")
+    liquidity_token_symbol: str = Field(..., alias="liquidityTokenSymbol", description="Liquidity token symbol")
+    currency_label: str = Field(..., alias="currencyLabel", description="Currency label")
+    pool_addr: str = Field(..., alias="poolAddr", description="Pool address")
+
+    class Config:
+        """Pydantic configuration."""
+
+        populate_by_name = True
+
+
+class VaultsListResponse(BaseModel):
+    """Response model for vaults list operations."""
+
+    vault_list: list[VaultListItem] = Field(..., alias="vaultList", description="List of vaults")
+
+    class Config:
+        """Pydantic configuration."""
+
+        populate_by_name = True
+
+
+class VaultOverviewCTO(BaseModel):
+    """Model for vault overview CTO."""
+
+    yield_type: str = Field(..., alias="yieldType", description="Yield type")
+    rollover_collateral: str = Field(..., alias="rolloverCollateral", description="Rollover collateral")
+    automatic_rollover: bool = Field(..., alias="automaticRollover", description="Automatic rollover flag")
+    early_withdrawal_processing_period: int = Field(
+        ..., alias="earlyWithdrawalProcessingPeriod", description="Early withdrawal processing period"
+    )
+    maximum_transfer_amount: int = Field(..., alias="maximumTransferAmount", description="Maximum transfer amount")
+    minimum_transfer_amount: int = Field(..., alias="minimumTransferAmount", description="Minimum transfer amount")
+    contractual_currency: str = Field(..., alias="contractualCurrency", description="Contractual currency")
+    liquidity_fee_rate: int = Field(..., alias="liquidityFeeRate", description="Liquidity fee rate")
+    platform_fee_rate: int = Field(..., alias="platformFeeRate", description="Platform fee rate")
+    advisory_fee_rate: int = Field(..., alias="advisoryFeeRate", description="Advisory fee rate")
+    transfer_out_days: int = Field(..., alias="transferOutDays", description="Transfer out days")
+    transfer_in_days: int = Field(..., alias="transferInDays", description="Transfer in days")
+    benchmark_rate: str = Field(..., alias="benchmarkRate", description="Benchmark rate")
+    collateral: list = Field(default_factory=list, description="List of collateral")
+    collateral_set_cto: CollateralSetCTO = Field(..., alias="collateralSetCTO", description="Collateral set CTO")
+    timestamp_offchain: int = Field(..., alias="timestampOffchain", description="Timestamp offchain")
+    pool_addr_offchain: str = Field(..., alias="poolAddrOffchain", description="Pool address offchain")
+    version: str = Field(..., description="Version")
+    pool_type: int = Field(..., alias="poolType", description="Pool type")
+    pool_addr: str = Field(..., alias="poolAddr", description="Pool address")
+    id: str = Field(..., description="ID")
+    chain_configuration_name: str = Field(..., alias="chainConfigurationName", description="Chain configuration name")
+    creation_block: int = Field(..., alias="creationBlock", description="Creation block")
+    creation_timestamp: int = Field(..., alias="creationTimestamp", description="Creation timestamp")
+    liquidity_token_symbol: str = Field(..., alias="liquidityTokenSymbol", description="Liquidity token symbol")
+    currency_label: str = Field(..., alias="currencyLabel", description="Currency label")
+    pool_admin_addr: str = Field(..., alias="poolAdminAddr", description="Pool admin address")
+    pool_controller_addr: str = Field(..., alias="poolControllerAddr", description="Pool controller address")
+    exchange_rate_type: int = Field(..., alias="exchangeRateType", description="Exchange rate type")
+    name: str = Field(..., description="Name")
+    symbol: str = Field(..., description="Symbol")
+    borrower_manager_addr: str = Field(..., alias="borrowerManagerAddr", description="Borrower manager address")
+    borrower_wallet_addr: str = Field(..., alias="borrowerWalletAddr", description="Borrower wallet address")
+    close_of_deposit_time: int = Field(..., alias="closeOfDepositTime", description="Close of deposit time")
+    close_of_withdraw_time: int = Field(..., alias="closeOfWithdrawTime", description="Close of withdraw time")
+    fee_collector_address: str = Field(..., alias="feeCollectorAddress", description="Fee collector address")
+    liquidity_asset_addr: str = Field(..., alias="liquidityAssetAddr", description="Liquidity asset address")
+    block_number: int = Field(..., alias="blockNumber", description="Block number")
+    timestamp: int = Field(..., description="Timestamp")
+    timestamp_date_string: str = Field(..., alias="timestampDateString", description="Timestamp date string")
+    timestamp_string: str = Field(..., alias="timestampString", description="Timestamp string")
+    time_of_day: int = Field(..., alias="timeOfDay", description="Time of day")
+    day_number: int = Field(..., alias="dayNumber", description="Day number")
+    chain_id: int = Field(..., alias="chainId", description="Chain ID")
+    state: int = Field(..., description="State")
+    total_assets_deposited: str = Field(..., alias="totalAssetsDeposited", description="Total assets deposited")
+    total_assets_withdrawn: str = Field(..., alias="totalAssetsWithdrawn", description="Total assets withdrawn")
+    interest_rate: str = Field(..., alias="interestRate", description="Interest rate")
+    exchange_rate: str = Field(..., alias="exchangeRate", description="Exchange rate")
+    exchange_rate_at_set_day: str = Field(..., alias="exchangeRateAtSetDay", description="Exchange rate at set day")
+    exchange_rate_set_day: int = Field(..., alias="exchangeRateSetDay", description="Exchange rate set day")
+    exchange_rate_change_rate: str = Field(..., alias="exchangeRateChangeRate", description="Exchange rate change rate")
+    exchange_rate_compounding_rate: str = Field(
+        ..., alias="exchangeRateCompoundingRate", description="Exchange rate compounding rate"
+    )
+    exchange_rate_at_maturity: str = Field(..., alias="exchangeRateAtMaturity", description="Exchange rate at maturity")
+    exchange_rate_maturity_day: int = Field(
+        ..., alias="exchangeRateMaturityDay", description="Exchange rate maturity day"
+    )
+    indicative_interest_rate: str = Field(..., alias="indicativeInterestRate", description="Indicative interest rate")
+    collateral_rate: str = Field(..., alias="collateralRate", description="Collateral rate")
+    total_interest_accrued: str = Field(..., alias="totalInterestAccrued", description="Total interest accrued")
+    total_shares: str = Field(..., alias="totalShares", description="Total shares")
+    total_assets: str = Field(..., alias="totalAssets", description="Total assets")
+    total_outstanding_loan_principal: str = Field(
+        ..., alias="totalOutstandingLoanPrincipal", description="Total outstanding loan principal"
+    )
+
+    class Config:
+        """Pydantic configuration."""
+
+        populate_by_name = True
+
+
+class VaultOverviewResponse(BaseModel):
+    """Response model for vault overview operations."""
+
+    vault_overview_cto: VaultOverviewCTO = Field(..., alias="vaultOverviewCTO", description="Vault overview CTO")
+    vault_address: str = Field(..., alias="vaultAddress", description="Vault address")
+
+    class Config:
+        """Pydantic configuration."""
+
+        populate_by_name = True

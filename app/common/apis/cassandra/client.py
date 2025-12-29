@@ -8,6 +8,9 @@ from app.common.apis.cassandra.dtos import (
     PayoutResponse,
     QuoteResponse,
     RecipientResponse,
+    VaultAccountResponse,
+    VaultOverviewResponse,
+    VaultsListResponse,
 )
 
 # Constants
@@ -143,6 +146,59 @@ class CassandraClient:
         req_path = f"{BASE_PAYOUTS_PATH}{PATH_SEPARATOR}{account}/payout"
         response_data = self._agent.get(req_path=req_path)
         return PayoutHistoryResponse(**response_data)
+
+    def get_vault_account(
+        self,
+        vault_address: str,
+        account_address: str,
+    ) -> VaultAccountResponse:
+        """Get vault account information.
+
+        Args:
+            vault_address: Vault address
+            account_address: Account address
+
+        Returns:
+            VaultAccountResponse containing vault account information
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"/v1/opentrade/vaultsAccount/{vault_address}/{account_address}"
+        response_data = self._agent.get(req_path=req_path)
+        return VaultAccountResponse(**response_data)
+
+    def get_vaults_list(self) -> VaultsListResponse:
+        """Get list of vaults.
+
+        Returns:
+            VaultsListResponse containing list of vaults
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = "/v1/opentrade/vaults"
+        response_data = self._agent.get(req_path=req_path)
+        return VaultsListResponse(**response_data)
+
+    def get_vault_overview(
+        self,
+        vault_address: str,
+    ) -> VaultOverviewResponse:
+        """Get vault overview information.
+
+        Args:
+            vault_address: Vault address
+
+        Returns:
+            VaultOverviewResponse containing vault overview information
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"/v1/opentrade/vaults/{vault_address}"
+        response_data = self._agent.get(req_path=req_path)
+        return VaultOverviewResponse(**response_data)
 
     def _parse_recipients_response(self, response_data: dict | list) -> list[RecipientResponse]:
         """Parse recipients response from API.
