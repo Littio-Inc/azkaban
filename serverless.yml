@@ -168,6 +168,18 @@ functions:
           path: /v1/vault/transactions/create-transaction
           authorizer: azkaban-authorizer
       - httpApi:
+          method: GET
+          path: /v1/opentrade/vaultsAccount/{vaultAddress}/{accountAddress}
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: GET
+          path: /v1/opentrade/vaults
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: GET
+          path: /v1/opentrade/vaults/{vaultAddress}
+          authorizer: azkaban-authorizer
+      - httpApi:
           method: get
           path: /health
       - httpApi:

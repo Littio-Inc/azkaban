@@ -12,11 +12,18 @@ from tests.fixtures import (
 
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    CollateralSetCTO,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
     RecipientResponse,
     TokenBalance,
+    VaultAccountCTO,
+    VaultAccountResponse,
+    VaultListItem,
+    VaultOverviewCTO,
+    VaultOverviewResponse,
+    VaultsListResponse,
 )
 from app.common.apis.cassandra.errors import CassandraAPIClientError
 from app.common.errors import MissingCredentialsError
@@ -34,6 +41,12 @@ PROVIDER_KIRA = "kira"
 API_ERROR_MSG = "API error"
 UNEXPECTED_ERROR_MSG = "Unexpected error"
 PATCH_PATH = "app.monetization.service.CassandraClient"
+VAULT_ADDRESS_TEST = "0xc03B8490636055D453878a7bD74bd116d0051e4B"
+ACCOUNT_ADDRESS_TEST = "0xfd4f11A2aaE86165050688c85eC9ED6210C427A9"
+VAULT_ADDRESS_TEST_SECOND = "0xD1f0774ccff0CE4F36DeA57b6a28aB7FeB0a01B0"
+VAULT_NAME_TEST = "Dynamic Test Vault 001"
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+ZERO_VALUE = 0
 
 
 class TestMonetizationService(unittest.TestCase):
@@ -261,3 +274,268 @@ class TestMonetizationService(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             MonetizationService.create_payout(ACCOUNT_TRANSFER, payout_data)
+
+    @patch(PATCH_PATH)
+    def test_get_vault_account_success(self, mock_client_class):
+        """Test successful vault account retrieval."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        vault_address = VAULT_ADDRESS_TEST
+        account_address = ACCOUNT_ADDRESS_TEST
+        expected_response = VaultAccountResponse(
+            vaultAccountCTO=VaultAccountCTO(
+                yieldType="DeFi",
+                rolloverCollateral=" ",
+                automaticRollover=False,
+                earlyWithdrawalProcessingPeriod=0,
+                maximumTransferAmount=0,
+                minimumTransferAmount=0,
+                contractualCurrency=" ",
+                liquidityFeeRate=0,
+                platformFeeRate=0,
+                advisoryFeeRate=0,
+                transferOutDays=0,
+                transferInDays=0,
+                benchmarkRate=" ",
+                collateral=[],
+                collateralSetCTO=CollateralSetCTO(
+                    exchangeRateAutomation="Manual",
+                    timestamp=1767044575,
+                    collateral=[],
+                    poolAddr=ZERO_ADDRESS,
+                ),
+                timestampOffchain=1767044568,
+                poolAddrOffchain=vault_address,
+                version="5.0.0",
+                poolType=2,
+                id=f"{vault_address}-{account_address}",
+                timestamp=1767044568,
+                timestampDateString="29-12-2025 UTC",
+                timestampString="21:42:48 UTC",
+                dayNumber=20451,
+                timeOfDay=78168,
+                blockNumber=9941016,
+                vaultName="Dynamic Vault 001",
+                currencyLabel="ERC20",
+                liquidityTokenSymbol="MUSDC",
+                poolAddr=vault_address,
+                accountAddr=account_address,
+                liquidityAssetAddr=account_address,
+                tokenBalance="0",
+                assetBalance="0",
+                principalEarningInterest="0",
+                maxWithdrawRequest="0",
+                maxRedeemRequest="0",
+                requestedSharesOf="0",
+                requestedAssetsOf="0",
+                acceptedShares="0",
+                acceptedAssets="0",
+                assetsDeposited="0",
+                assetsWithdrawn="0",
+                currentAssetValue="0",
+                gainLoss="0",
+                gainLossInDay="0",
+                credits="0",
+                creditsInDay="0",
+                debits="0",
+                debitsInDay="0",
+                fees="0",
+                feesInDay="0",
+                interestRate="1200",
+                exchangeRate="1060438524345691461",
+                indicativeInterestRate="0",
+                collateralRate="0",
+            ),
+            vaultAddress=vault_address,
+            accountAddress=account_address,
+        )
+        mock_client.get_vault_account.return_value = expected_response
+
+        result = MonetizationService.get_vault_account(vault_address, account_address)
+
+        self.assertEqual(result.vault_address, vault_address)
+        self.assertEqual(result.account_address, account_address)
+        mock_client.get_vault_account.assert_called_once_with(vault_address, account_address)
+
+    @patch(PATCH_PATH)
+    def test_get_vault_account_api_error(self, mock_client_class):
+        """Test vault account retrieval with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        vault_address = "0xc03B8490636055D453878a7bD74bd116d0051e4B"
+        account_address = ACCOUNT_ADDRESS_TEST
+        mock_client.get_vault_account.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.get_vault_account(vault_address, account_address)
+
+    @patch(PATCH_PATH)
+    def test_get_vault_account_unexpected_error(self, mock_client_class):
+        """Test vault account retrieval with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        vault_address = "0xc03B8490636055D453878a7bD74bd116d0051e4B"
+        account_address = ACCOUNT_ADDRESS_TEST
+        mock_client.get_vault_account.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+
+        with self.assertRaises(ValueError):
+            MonetizationService.get_vault_account(vault_address, account_address)
+
+    @patch(PATCH_PATH)
+    def test_get_vaults_list_success(self, mock_client_class):
+        """Test successful vaults list retrieval."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_response = VaultsListResponse(
+            vaultList=[
+                VaultListItem(
+                    displayName=VAULT_NAME_TEST,
+                    chainId=11155111,
+                    contractName="PoolDynamic",
+                    poolType=2,
+                    chainConfigName="SandboxSepolia",
+                    creationBlock=8818602,
+                    creationTimestamp=1753197612,
+                    symbol="xFIGSOL",
+                    name=VAULT_NAME_TEST,
+                    liquidityAssetAddr=ACCOUNT_ADDRESS_TEST,
+                    liquidityTokenSymbol="MUSDC",
+                    currencyLabel="ERC20",
+                    poolAddr=VAULT_ADDRESS_TEST_SECOND,
+                ),
+            ],
+        )
+        mock_client.get_vaults_list.return_value = expected_response
+
+        result = MonetizationService.get_vaults_list()
+
+        self.assertEqual(len(result.vault_list), 1)
+        self.assertEqual(result.vault_list[0].display_name, VAULT_NAME_TEST)
+        mock_client.get_vaults_list.assert_called_once()
+
+    @patch(PATCH_PATH)
+    def test_get_vaults_list_api_error(self, mock_client_class):
+        """Test vaults list retrieval with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_vaults_list.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.get_vaults_list()
+
+    @patch(PATCH_PATH)
+    def test_get_vaults_list_unexpected_error(self, mock_client_class):
+        """Test vaults list retrieval with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_vaults_list.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+
+        with self.assertRaises(ValueError):
+            MonetizationService.get_vaults_list()
+
+    @patch(PATCH_PATH)
+    def test_get_vault_overview_success(self, mock_client_class):
+        """Test successful vault overview retrieval."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        vault_address = VAULT_ADDRESS_TEST_SECOND
+        expected_response = VaultOverviewResponse(
+            vaultOverviewCTO=VaultOverviewCTO(
+                yieldType="DeFi",
+                rolloverCollateral=" ",
+                automaticRollover=False,
+                earlyWithdrawalProcessingPeriod=0,
+                maximumTransferAmount=1000000000,
+                minimumTransferAmount=100,
+                contractualCurrency=" USD",
+                liquidityFeeRate=20,
+                platformFeeRate=25,
+                advisoryFeeRate=5,
+                transferOutDays=3,
+                transferInDays=0,
+                benchmarkRate=" NA",
+                collateral=[],
+                collateralSetCTO=CollateralSetCTO(
+                    exchangeRateAutomation="Manual",
+                    timestamp=1767041714,
+                    collateral=[],
+                    poolAddr=ZERO_ADDRESS,
+                ),
+                timestampOffchain=1753198329,
+                poolAddrOffchain=vault_address,
+                version="5.0.0",
+                poolType=2,
+                poolAddr=vault_address,
+                id=vault_address,
+                chainConfigurationName="SandboxSepolia",
+                creationBlock=8818602,
+                creationTimestamp=1753197612,
+                liquidityTokenSymbol="MUSDC",
+                currencyLabel="ERC20",
+                poolAdminAddr="0x517B2eBBd4fB0Bd0EEc0E9b540ae29E6984314f0",
+                poolControllerAddr="0xe3aFa8b1cd6334D0DC15303446A2FEcdeb4f0Dd4",
+                exchangeRateType=3,
+                name=VAULT_NAME_TEST,
+                symbol="xFIGSOL",
+                borrowerManagerAddr="0x27E6A4Bc57f86B0ba15561dc5D822Fb539C2295e",
+                borrowerWalletAddr="0x27E6A4Bc57f86B0ba15561dc5D822Fb539C2295e",
+                closeOfDepositTime=64800,
+                closeOfWithdrawTime=64800,
+                feeCollectorAddress="0x27E6A4Bc57f86B0ba15561dc5D822Fb539C2295e",
+                liquidityAssetAddr="0xfd4f11A2aaE86165050688c85eC9ED6210C427A9",
+                blockNumber=9940865,
+                timestamp=1767042576,
+                timestampDateString="29-12-2025 UTC",
+                timestampString="21:09:36 UTC",
+                timeOfDay=76176,
+                dayNumber=20451,
+                chainId=0,
+                state=1,
+                totalAssetsDeposited="11122887621000",
+                totalAssetsWithdrawn="1201239102",
+                interestRate="1500",
+                exchangeRate="1063588340855450534",
+                exchangeRateAtSetDay="1063588340855450534",
+                exchangeRateSetDay=20451,
+                exchangeRateChangeRate="0",
+                exchangeRateCompoundingRate="1000382982750000000",
+                exchangeRateAtMaturity="1000000000000000000",
+                exchangeRateMaturityDay=20291,
+                indicativeInterestRate="0",
+                collateralRate="0",
+                totalInterestAccrued="657609398727",
+                totalShares="11075051623029",
+                totalAssets="11779295780625",
+                totalOutstandingLoanPrincipal="11779295780625",
+            ),
+            vaultAddress=vault_address,
+        )
+        mock_client.get_vault_overview.return_value = expected_response
+
+        result = MonetizationService.get_vault_overview(vault_address)
+
+        self.assertEqual(result.vault_address, vault_address)
+        self.assertEqual(result.vault_overview_cto.name, VAULT_NAME_TEST)
+        mock_client.get_vault_overview.assert_called_once_with(vault_address)
+
+    @patch(PATCH_PATH)
+    def test_get_vault_overview_api_error(self, mock_client_class):
+        """Test vault overview retrieval with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        vault_address = VAULT_ADDRESS_TEST_SECOND
+        mock_client.get_vault_overview.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.get_vault_overview(vault_address)
+
+    @patch(PATCH_PATH)
+    def test_get_vault_overview_unexpected_error(self, mock_client_class):
+        """Test vault overview retrieval with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        vault_address = VAULT_ADDRESS_TEST_SECOND
+        mock_client.get_vault_overview.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+
+        with self.assertRaises(ValueError):
+            MonetizationService.get_vault_overview(vault_address)

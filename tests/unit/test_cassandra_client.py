@@ -6,10 +6,17 @@ from unittest.mock import MagicMock, patch
 from app.common.apis.cassandra.client import CassandraClient
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    CollateralSetCTO,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
     RecipientResponse,
+    VaultAccountCTO,
+    VaultAccountResponse,
+    VaultListItem,
+    VaultOverviewCTO,
+    VaultOverviewResponse,
+    VaultsListResponse,
 )
 from app.common.apis.cassandra.errors import CassandraAPIClientError
 from app.common.errors import MissingCredentialsError
@@ -311,4 +318,214 @@ class TestCassandraClient(unittest.TestCase):
         client = CassandraClient()
         with self.assertRaises(TypeError):
             client.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, "kira")
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_vault_account_success(self, mock_get_secret, mock_agent_class):
+        """Test successful vault account retrieval."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        vault_address = "0xc03B8490636055D453878a7bD74bd116d0051e4B"
+        account_address = "0xfd4f11A2aaE86165050688c85eC9ED6210C427A9"
+        mock_agent.get.return_value = {
+            "vaultAccountCTO": {
+                "yieldType": "DeFi",
+                "rolloverCollateral": " ",
+                "automaticRollover": False,
+                "earlyWithdrawalProcessingPeriod": 0,
+                "maximumTransferAmount": 0,
+                "minimumTransferAmount": 0,
+                "contractualCurrency": " ",
+                "liquidityFeeRate": 0,
+                "platformFeeRate": 0,
+                "advisoryFeeRate": 0,
+                "transferOutDays": 0,
+                "transferInDays": 0,
+                "benchmarkRate": " ",
+                "collateral": [],
+                "collateralSetCTO": {
+                    "exchangeRateAutomation": "Manual",
+                    "timestamp": 1767044575,
+                    "collateral": [],
+                    "poolAddr": "0x0000000000000000000000000000000000000000",
+                },
+                "timestampOffchain": 1767044568,
+                "poolAddrOffchain": vault_address,
+                "version": "5.0.0",
+                "poolType": 2,
+                "id": f"{vault_address}-{account_address}",
+                "timestamp": 1767044568,
+                "timestampDateString": "29-12-2025 UTC",
+                "timestampString": "21:42:48 UTC",
+                "dayNumber": 20451,
+                "timeOfDay": 78168,
+                "blockNumber": 9941016,
+                "vaultName": "Dynamic Vault 001",
+                "currencyLabel": "ERC20",
+                "liquidityTokenSymbol": "MUSDC",
+                "poolAddr": vault_address,
+                "accountAddr": account_address,
+                "liquidityAssetAddr": account_address,
+                "tokenBalance": "0",
+                "assetBalance": "0",
+                "principalEarningInterest": "0",
+                "maxWithdrawRequest": "0",
+                "maxRedeemRequest": "0",
+                "requestedSharesOf": "0",
+                "requestedAssetsOf": "0",
+                "acceptedShares": "0",
+                "acceptedAssets": "0",
+                "assetsDeposited": "0",
+                "assetsWithdrawn": "0",
+                "currentAssetValue": "0",
+                "gainLoss": "0",
+                "gainLossInDay": "0",
+                "credits": "0",
+                "creditsInDay": "0",
+                "debits": "0",
+                "debitsInDay": "0",
+                "fees": "0",
+                "feesInDay": "0",
+                "interestRate": "1200",
+                "exchangeRate": "1060438524345691461",
+                "indicativeInterestRate": "0",
+                "collateralRate": "0",
+            },
+            "vaultAddress": vault_address,
+            "accountAddress": account_address,
+        }
+
+        client = CassandraClient()
+        result = client.get_vault_account(vault_address, account_address)
+
+        self.assertIsInstance(result, VaultAccountResponse)
+        self.assertEqual(result.vault_address, vault_address)
+        self.assertEqual(result.account_address, account_address)
+        mock_agent.get.assert_called_once_with(
+            req_path=f"/v1/opentrade/vaultsAccount/{vault_address}/{account_address}"
+        )
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_vaults_list_success(self, mock_get_secret, mock_agent_class):
+        """Test successful vaults list retrieval."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {
+            "vaultList": [
+                {
+                    "displayName": "Dynamic Test Vault 001",
+                    "chainId": 11155111,
+                    "contractName": "PoolDynamic",
+                    "poolType": 2,
+                    "chainConfigName": "SandboxSepolia",
+                    "creationBlock": 8818602,
+                    "creationTimestamp": 1753197612,
+                    "symbol": "xFIGSOL",
+                    "name": "Dynamic Test Vault 001",
+                    "liquidityAssetAddr": "0xfd4f11A2aaE86165050688c85eC9ED6210C427A9",
+                    "liquidityTokenSymbol": "MUSDC",
+                    "currencyLabel": "ERC20",
+                    "poolAddr": "0xD1f0774ccff0CE4F36DeA57b6a28aB7FeB0a01B0",
+                },
+            ],
+        }
+
+        client = CassandraClient()
+        result = client.get_vaults_list()
+
+        self.assertIsInstance(result, VaultsListResponse)
+        self.assertEqual(len(result.vault_list), 1)
+        self.assertEqual(result.vault_list[0].display_name, "Dynamic Test Vault 001")
+        mock_agent.get.assert_called_once_with(req_path="/v1/opentrade/vaults")
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_vault_overview_success(self, mock_get_secret, mock_agent_class):
+        """Test successful vault overview retrieval."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        vault_address = "0xD1f0774ccff0CE4F36DeA57b6a28aB7FeB0a01B0"
+        mock_agent.get.return_value = {
+            "vaultOverviewCTO": {
+                "yieldType": "DeFi",
+                "rolloverCollateral": " ",
+                "automaticRollover": False,
+                "earlyWithdrawalProcessingPeriod": 0,
+                "maximumTransferAmount": 1000000000,
+                "minimumTransferAmount": 100,
+                "contractualCurrency": " USD",
+                "liquidityFeeRate": 20,
+                "platformFeeRate": 25,
+                "advisoryFeeRate": 5,
+                "transferOutDays": 3,
+                "transferInDays": 0,
+                "benchmarkRate": " NA",
+                "collateral": [],
+                "collateralSetCTO": {
+                    "exchangeRateAutomation": "Manual",
+                    "timestamp": 1767041714,
+                    "collateral": [],
+                    "poolAddr": "0x0000000000000000000000000000000000000000",
+                },
+                "timestampOffchain": 1753198329,
+                "poolAddrOffchain": vault_address,
+                "version": "5.0.0",
+                "poolType": 2,
+                "poolAddr": vault_address,
+                "id": vault_address,
+                "chainConfigurationName": "SandboxSepolia",
+                "creationBlock": 8818602,
+                "creationTimestamp": 1753197612,
+                "liquidityTokenSymbol": "MUSDC",
+                "currencyLabel": "ERC20",
+                "poolAdminAddr": "0x517B2eBBd4fB0Bd0EEc0E9b540ae29E6984314f0",
+                "poolControllerAddr": "0xe3aFa8b1cd6334D0DC15303446A2FEcdeb4f0Dd4",
+                "exchangeRateType": 3,
+                "name": "Dynamic Test Vault 001",
+                "symbol": "xFIGSOL",
+                "borrowerManagerAddr": "0x27E6A4Bc57f86B0ba15561dc5D822Fb539C2295e",
+                "borrowerWalletAddr": "0x27E6A4Bc57f86B0ba15561dc5D822Fb539C2295e",
+                "closeOfDepositTime": 64800,
+                "closeOfWithdrawTime": 64800,
+                "feeCollectorAddress": "0x27E6A4Bc57f86B0ba15561dc5D822Fb539C2295e",
+                "liquidityAssetAddr": "0xfd4f11A2aaE86165050688c85eC9ED6210C427A9",
+                "blockNumber": 9940865,
+                "timestamp": 1767042576,
+                "timestampDateString": "29-12-2025 UTC",
+                "timestampString": "21:09:36 UTC",
+                "timeOfDay": 76176,
+                "dayNumber": 20451,
+                "chainId": 0,
+                "state": 1,
+                "totalAssetsDeposited": "11122887621000",
+                "totalAssetsWithdrawn": "1201239102",
+                "interestRate": "1500",
+                "exchangeRate": "1063588340855450534",
+                "exchangeRateAtSetDay": "1063588340855450534",
+                "exchangeRateSetDay": 20451,
+                "exchangeRateChangeRate": "0",
+                "exchangeRateCompoundingRate": "1000382982750000000",
+                "exchangeRateAtMaturity": "1000000000000000000",
+                "exchangeRateMaturityDay": 20291,
+                "indicativeInterestRate": "0",
+                "collateralRate": "0",
+                "totalInterestAccrued": "657609398727",
+                "totalShares": "11075051623029",
+                "totalAssets": "11779295780625",
+                "totalOutstandingLoanPrincipal": "11779295780625",
+            },
+            "vaultAddress": vault_address,
+        }
+
+        client = CassandraClient()
+        result = client.get_vault_overview(vault_address)
+
+        self.assertIsInstance(result, VaultOverviewResponse)
+        self.assertEqual(result.vault_address, vault_address)
+        self.assertEqual(result.vault_overview_cto.name, "Dynamic Test Vault 001")
+        mock_agent.get.assert_called_once_with(req_path=f"/v1/opentrade/vaults/{vault_address}")
 

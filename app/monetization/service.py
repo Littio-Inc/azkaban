@@ -10,6 +10,9 @@ from app.common.apis.cassandra.dtos import (
     PayoutResponse,
     QuoteResponse,
     RecipientResponse,
+    VaultAccountResponse,
+    VaultOverviewResponse,
+    VaultsListResponse,
 )
 from app.common.apis.cassandra.errors import CassandraAPIClientError
 
@@ -106,6 +109,43 @@ def _call_get_payout_history(account: str) -> PayoutHistoryResponse:
     """
     client = _get_client()
     return client.get_payout_history(account)
+
+
+def _call_get_vault_account(vault_address: str, account_address: str) -> VaultAccountResponse:
+    """Call get_vault_account on client.
+
+    Args:
+        vault_address: Vault address
+        account_address: Account address
+
+    Returns:
+        VaultAccountResponse containing vault account information
+    """
+    client = _get_client()
+    return client.get_vault_account(vault_address, account_address)
+
+
+def _call_get_vaults_list() -> VaultsListResponse:
+    """Call get_vaults_list on client.
+
+    Returns:
+        VaultsListResponse containing list of vaults
+    """
+    client = _get_client()
+    return client.get_vaults_list()
+
+
+def _call_get_vault_overview(vault_address: str) -> VaultOverviewResponse:
+    """Call get_vault_overview on client.
+
+    Args:
+        vault_address: Vault address
+
+    Returns:
+        VaultOverviewResponse containing vault overview information
+    """
+    client = _get_client()
+    return client.get_vault_overview(vault_address)
 
 
 class MonetizationService:
@@ -239,4 +279,71 @@ class MonetizationService:
             raise
         except Exception as exc:
             logger.exception("Unexpected error getting payout history: %s", exc)
+            raise
+
+    @staticmethod
+    def get_vault_account(vault_address: str, account_address: str) -> VaultAccountResponse:
+        """Get vault account information.
+
+        Args:
+            vault_address: Vault address
+            account_address: Account address
+
+        Returns:
+            VaultAccountResponse containing vault account information
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_get_vault_account(vault_address, account_address)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error getting vault account: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error getting vault account: {exc}")
+            raise
+
+    @staticmethod
+    def get_vaults_list() -> VaultsListResponse:
+        """Get list of vaults.
+
+        Returns:
+            VaultsListResponse containing list of vaults
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_get_vaults_list()
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error getting vaults list: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error getting vaults list: {exc}")
+            raise
+
+    @staticmethod
+    def get_vault_overview(vault_address: str) -> VaultOverviewResponse:
+        """Get vault overview information.
+
+        Args:
+            vault_address: Vault address
+
+        Returns:
+            VaultOverviewResponse containing vault overview information
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_get_vault_overview(vault_address)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error getting vault overview: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error getting vault overview: {exc}")
             raise
