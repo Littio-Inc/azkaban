@@ -12,10 +12,12 @@ from tests.fixtures import (
 
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletResponse,
     CollateralSetCTO,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
+    RecipientListResponse,
     RecipientResponse,
     TokenBalance,
     VaultAccountCTO,
@@ -41,6 +43,18 @@ PROVIDER_KIRA = "kira"
 API_ERROR_MSG = "API error"
 UNEXPECTED_ERROR_MSG = "Unexpected error"
 PATCH_PATH = "app.monetization.service.CassandraClient"
+
+
+def _create_api_error():
+    """Create API error for testing."""
+    return CassandraAPIClientError(API_ERROR_MSG)
+
+
+def _create_unexpected_error():
+    """Create unexpected error for testing."""
+    return ValueError(UNEXPECTED_ERROR_MSG)
+
+
 VAULT_ADDRESS_TEST = "0xc03B8490636055D453878a7bD74bd116d0051e4B"
 ACCOUNT_ADDRESS_TEST = "0xfd4f11A2aaE86165050688c85eC9ED6210C427A9"
 VAULT_ADDRESS_TEST_SECOND = "0xD1f0774ccff0CE4F36DeA57b6a28aB7FeB0a01B0"
@@ -86,7 +100,7 @@ class TestMonetizationService(unittest.TestCase):
         """Test quote retrieval with API error."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
-        mock_client.get_quote.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+        mock_client.get_quote.side_effect = _create_api_error()
 
         with self.assertRaises(CassandraAPIClientError):
             MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, PROVIDER_KIRA)
@@ -123,7 +137,7 @@ class TestMonetizationService(unittest.TestCase):
         """Test recipients retrieval with API error."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
-        mock_client.get_recipients.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+        mock_client.get_recipients.side_effect = _create_api_error()
 
         with self.assertRaises(CassandraAPIClientError):
             MonetizationService.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST, PROVIDER_KIRA)
@@ -153,7 +167,7 @@ class TestMonetizationService(unittest.TestCase):
         """Test balance retrieval with API error."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
-        mock_client.get_balance.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+        mock_client.get_balance.side_effect = _create_api_error()
 
         with self.assertRaises(CassandraAPIClientError):
             MonetizationService.get_balance(ACCOUNT_TRANSFER, WALLET_ID_TEST)
@@ -211,7 +225,7 @@ class TestMonetizationService(unittest.TestCase):
             token=TOKEN_USDC,
             provider=PROVIDER_KIRA,
         )
-        mock_client.create_payout.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+        mock_client.create_payout.side_effect = _create_api_error()
 
         with self.assertRaises(CassandraAPIClientError):
             MonetizationService.create_payout(ACCOUNT_TRANSFER, payout_data)
@@ -229,7 +243,7 @@ class TestMonetizationService(unittest.TestCase):
         """Test quote retrieval with unexpected error."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
-        mock_client.get_quote.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+        mock_client.get_quote.side_effect = _create_unexpected_error()
 
         with self.assertRaises(ValueError):
             MonetizationService.get_quote(ACCOUNT_TRANSFER, 100.0, CURRENCY_USD, CURRENCY_COP, PROVIDER_KIRA)
@@ -239,7 +253,7 @@ class TestMonetizationService(unittest.TestCase):
         """Test recipients retrieval with unexpected error."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
-        mock_client.get_recipients.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+        mock_client.get_recipients.side_effect = _create_unexpected_error()
 
         with self.assertRaises(ValueError):
             MonetizationService.get_recipients(ACCOUNT_TRANSFER, USER_ID_TEST, PROVIDER_KIRA)
@@ -249,7 +263,7 @@ class TestMonetizationService(unittest.TestCase):
         """Test balance retrieval with unexpected error."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
-        mock_client.get_balance.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+        mock_client.get_balance.side_effect = _create_unexpected_error()
 
         with self.assertRaises(ValueError):
             MonetizationService.get_balance(ACCOUNT_TRANSFER, WALLET_ID_TEST)
@@ -270,7 +284,7 @@ class TestMonetizationService(unittest.TestCase):
             token=TOKEN_USDC,
             provider=PROVIDER_KIRA,
         )
-        mock_client.create_payout.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+        mock_client.create_payout.side_effect = _create_unexpected_error()
 
         with self.assertRaises(ValueError):
             MonetizationService.create_payout(ACCOUNT_TRANSFER, payout_data)
@@ -364,7 +378,7 @@ class TestMonetizationService(unittest.TestCase):
         mock_client_class.return_value = mock_client
         vault_address = "0xc03B8490636055D453878a7bD74bd116d0051e4B"
         account_address = ACCOUNT_ADDRESS_TEST
-        mock_client.get_vault_account.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+        mock_client.get_vault_account.side_effect = _create_api_error()
 
         with self.assertRaises(CassandraAPIClientError):
             MonetizationService.get_vault_account(vault_address, account_address)
@@ -376,7 +390,7 @@ class TestMonetizationService(unittest.TestCase):
         mock_client_class.return_value = mock_client
         vault_address = "0xc03B8490636055D453878a7bD74bd116d0051e4B"
         account_address = ACCOUNT_ADDRESS_TEST
-        mock_client.get_vault_account.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+        mock_client.get_vault_account.side_effect = _create_unexpected_error()
 
         with self.assertRaises(ValueError):
             MonetizationService.get_vault_account(vault_address, account_address)
@@ -418,7 +432,7 @@ class TestMonetizationService(unittest.TestCase):
         """Test vaults list retrieval with API error."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
-        mock_client.get_vaults_list.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+        mock_client.get_vaults_list.side_effect = _create_api_error()
 
         with self.assertRaises(CassandraAPIClientError):
             MonetizationService.get_vaults_list()
@@ -428,7 +442,7 @@ class TestMonetizationService(unittest.TestCase):
         """Test vaults list retrieval with unexpected error."""
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
-        mock_client.get_vaults_list.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+        mock_client.get_vaults_list.side_effect = _create_unexpected_error()
 
         with self.assertRaises(ValueError):
             MonetizationService.get_vaults_list()
@@ -524,7 +538,7 @@ class TestMonetizationService(unittest.TestCase):
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         vault_address = VAULT_ADDRESS_TEST_SECOND
-        mock_client.get_vault_overview.side_effect = CassandraAPIClientError(API_ERROR_MSG)
+        mock_client.get_vault_overview.side_effect = _create_api_error()
 
         with self.assertRaises(CassandraAPIClientError):
             MonetizationService.get_vault_overview(vault_address)
@@ -535,7 +549,134 @@ class TestMonetizationService(unittest.TestCase):
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         vault_address = VAULT_ADDRESS_TEST_SECOND
-        mock_client.get_vault_overview.side_effect = ValueError(UNEXPECTED_ERROR_MSG)
+        mock_client.get_vault_overview.side_effect = _create_unexpected_error()
 
         with self.assertRaises(ValueError):
             MonetizationService.get_vault_overview(vault_address)
+
+    @patch(PATCH_PATH)
+    def test_get_recipients_list_success(self, mock_client_class):
+        """Test successful recipients list retrieval."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_recipients = [
+            RecipientListResponse(
+                id="b7d30b7a-0c66-411d-a0e6-1b3ae385132e",
+                user_id="dd329366-a9ff-4f5b-a606-6ce0e15b5a83",
+                type="transfer",
+                first_name=None,
+                last_name=None,
+                company_name="Banco BBVA Colombia S.A",
+                document_type="NIT",
+                document_number="90156317234",
+                bank_code="1013",
+                account_number="31231231233",
+                account_type="savings",
+                cobre_counterparty_id=None,
+                provider="BBVA",
+                created_at="2025-12-31T21:05:11.794956+00:00",
+                updated_at="2025-12-31T21:05:11.794956+00:00",
+            )
+        ]
+        mock_client.get_recipients_list.return_value = expected_recipients
+
+        result = MonetizationService.get_recipients_list(provider="BBVA")
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].id, "b7d30b7a-0c66-411d-a0e6-1b3ae385132e")
+        self.assertEqual(result[0].provider, "BBVA")
+        mock_client.get_recipients_list.assert_called_once_with(provider="BBVA", exclude_provider=None)
+
+    @patch(PATCH_PATH)
+    def test_get_recipients_list_exclude_provider(self, mock_client_class):
+        """Test recipients list retrieval with exclude_provider."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_recipients = []
+        mock_client.get_recipients_list.return_value = expected_recipients
+
+        result = MonetizationService.get_recipients_list(exclude_provider="COBRE")
+
+        self.assertEqual(len(result), 0)
+        mock_client.get_recipients_list.assert_called_once_with(provider=None, exclude_provider="COBRE")
+
+    @patch(PATCH_PATH)
+    def test_get_recipients_list_api_error(self, mock_client_class):
+        """Test recipients list retrieval with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_recipients_list.side_effect = _create_api_error()
+
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.get_recipients_list(provider="BBVA")
+
+    @patch(PATCH_PATH)
+    def test_get_recipients_list_unexpected_error(self, mock_client_class):
+        """Test recipients list retrieval with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_recipients_list.side_effect = _create_unexpected_error()
+
+        with self.assertRaises(ValueError):
+            MonetizationService.get_recipients_list(provider="BBVA")
+
+    @patch(PATCH_PATH)
+    def test_get_blockchain_wallets_success(self, mock_client_class):
+        """Test successful blockchain wallets retrieval."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_wallets = [
+            BlockchainWalletResponse(
+                id="80cb0fb1-ddce-499a-a84d-927a9c30944a",
+                name="Littio-Test",
+                provider="OPEN_TRADE",
+                wallet_id="0x3390885691531951317BB47afE6F304B19bb6140",
+                provider_id="5",
+                network="POLYGON",
+                enabled=True,
+                category="Manual retiros",
+                owner="LITTIO",
+                created_at="2025-12-31T15:22:32.738242+00:00",
+            )
+        ]
+        mock_client.get_blockchain_wallets.return_value = expected_wallets
+
+        result = MonetizationService.get_blockchain_wallets(provider="FIREBLOCKS")
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].id, "80cb0fb1-ddce-499a-a84d-927a9c30944a")
+        self.assertEqual(result[0].provider, "OPEN_TRADE")
+        mock_client.get_blockchain_wallets.assert_called_once_with(provider="FIREBLOCKS", exclude_provider=None)
+
+    @patch(PATCH_PATH)
+    def test_get_blockchain_wallets_exclude_provider(self, mock_client_class):
+        """Test blockchain wallets retrieval with exclude_provider."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_wallets = []
+        mock_client.get_blockchain_wallets.return_value = expected_wallets
+
+        result = MonetizationService.get_blockchain_wallets(exclude_provider="COBRE")
+
+        self.assertEqual(len(result), 0)
+        mock_client.get_blockchain_wallets.assert_called_once_with(provider=None, exclude_provider="COBRE")
+
+    @patch(PATCH_PATH)
+    def test_get_blockchain_wallets_api_error(self, mock_client_class):
+        """Test blockchain wallets retrieval with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_blockchain_wallets.side_effect = _create_api_error()
+
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.get_blockchain_wallets(provider="FIREBLOCKS")
+
+    @patch(PATCH_PATH)
+    def test_get_blockchain_wallets_unexpected_error(self, mock_client_class):
+        """Test blockchain wallets retrieval with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_blockchain_wallets.side_effect = _create_unexpected_error()
+
+        with self.assertRaises(ValueError):
+            MonetizationService.get_blockchain_wallets(provider="FIREBLOCKS")

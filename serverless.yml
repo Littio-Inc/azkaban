@@ -180,6 +180,14 @@ functions:
           path: /v1/opentrade/vaults/{vaultAddress}
           authorizer: azkaban-authorizer
       - httpApi:
+          method: GET
+          path: /v1/recipients
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: GET
+          path: /v1/blockchain-wallets
+          authorizer: azkaban-authorizer
+      - httpApi:
           method: get
           path: /health
       - httpApi:
