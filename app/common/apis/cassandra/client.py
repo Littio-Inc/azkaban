@@ -3,10 +3,12 @@
 from app.common.apis.cassandra.agent import BASE_PAYOUTS_PATH, CassandraAgent
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletResponse,
     PayoutCreateRequest,
     PayoutHistoryResponse,
     PayoutResponse,
     QuoteResponse,
+    RecipientListResponse,
     RecipientResponse,
     VaultAccountResponse,
     VaultOverviewResponse,
@@ -200,6 +202,66 @@ class CassandraClient:
         response_data = self._agent.get(req_path=req_path)
         return VaultOverviewResponse(**response_data)
 
+    def get_recipients_list(
+        self,
+        provider: str | None = None,
+        exclude_provider: str | None = None,
+    ) -> list[RecipientListResponse]:
+        """Get recipients list from v1/recipients endpoint.
+
+        Args:
+            provider: Optional provider name to filter by
+            exclude_provider: Optional provider name to exclude
+
+        Returns:
+            List of RecipientListResponse objects
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = "/v1/recipients"
+        query_params = {}
+        if provider:
+            query_params["provider"] = provider
+        if exclude_provider:
+            query_params["exclude_provider"] = exclude_provider
+
+        response_data = self._agent.get(
+            req_path=req_path,
+            query_params=query_params if query_params else None,
+        )
+        return self._parse_recipients_list_response(response_data)
+
+    def get_blockchain_wallets(
+        self,
+        provider: str | None = None,
+        exclude_provider: str | None = None,
+    ) -> list[BlockchainWalletResponse]:
+        """Get blockchain wallets from v1/blockchain-wallets endpoint.
+
+        Args:
+            provider: Optional provider name to filter by
+            exclude_provider: Optional provider name to exclude
+
+        Returns:
+            List of BlockchainWalletResponse objects
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = "/v1/blockchain-wallets"
+        query_params = {}
+        if provider:
+            query_params["provider"] = provider
+        if exclude_provider:
+            query_params["exclude_provider"] = exclude_provider
+
+        response_data = self._agent.get(
+            req_path=req_path,
+            query_params=query_params if query_params else None,
+        )
+        return self._parse_blockchain_wallets_response(response_data)
+
     def _parse_recipients_response(self, response_data: dict | list) -> list[RecipientResponse]:
         """Parse recipients response from API.
 
@@ -221,3 +283,47 @@ class CassandraClient:
             return [RecipientResponse(**recipient) for recipient in response_data]
         # Handle single recipient object
         return [RecipientResponse(**response_data)]
+
+    def _parse_recipients_list_response(self, response_data: dict | list) -> list[RecipientListResponse]:
+        """Parse recipients list response from API.
+
+        Args:
+            response_data: Response data as dict or list
+
+        Returns:
+            List of RecipientListResponse objects
+
+        Raises:
+            CassandraAPIClientError: If parsing fails
+        """
+        # Handle response format: {'recipients': [...]}
+        if isinstance(response_data, dict) and "recipients" in response_data:
+            recipients_list = response_data["recipients"]
+            return [RecipientListResponse(**recipient) for recipient in recipients_list]
+        # Handle direct list format
+        if isinstance(response_data, list):
+            return [RecipientListResponse(**recipient) for recipient in response_data]
+        # Handle single recipient object
+        return [RecipientListResponse(**response_data)]
+
+    def _parse_blockchain_wallets_response(self, response_data: dict | list) -> list[BlockchainWalletResponse]:
+        """Parse blockchain wallets response from API.
+
+        Args:
+            response_data: Response data as dict or list
+
+        Returns:
+            List of BlockchainWalletResponse objects
+
+        Raises:
+            CassandraAPIClientError: If parsing fails
+        """
+        # Handle response format: {'wallets': [...]}
+        if isinstance(response_data, dict) and "wallets" in response_data:
+            wallets_list = response_data["wallets"]
+            return [BlockchainWalletResponse(**wallet) for wallet in wallets_list]
+        # Handle direct list format
+        if isinstance(response_data, list):
+            return [BlockchainWalletResponse(**wallet) for wallet in response_data]
+        # Handle single wallet object
+        return [BlockchainWalletResponse(**response_data)]

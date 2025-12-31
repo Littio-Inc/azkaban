@@ -54,6 +54,55 @@ class RecipientResponse(BaseModel):
         }
 
 
+class RecipientListResponse(BaseModel):
+    """Response model for recipient list operations (v1/recipients endpoint)."""
+
+    id: str = Field(..., description="Recipient's unique identifier")
+    user_id: str = Field(..., description="User ID associated with the recipient")
+    type: str = Field(..., description="Recipient type (e.g., 'transfer')")
+    first_name: str | None = Field(None, description="Recipient's first name")
+    last_name: str | None = Field(None, description="Recipient's last name")
+    company_name: str | None = Field(None, description="Recipient's company name")
+    document_type: str | None = Field(None, description="Document type (e.g., 'NIT')")
+    document_number: str | None = Field(None, description="Document number")
+    bank_code: str | None = Field(None, description="Bank code")
+    account_number: str | None = Field(None, description="Account number")
+    account_type: str | None = Field(None, description="Account type (e.g., 'savings')")
+    cobre_counterparty_id: str | None = Field(None, description="Cobre counterparty ID")
+    provider: str = Field(..., description="Provider name (e.g., 'BBVA', 'ZULU', 'COBRE')")
+    created_at: str = Field(..., description="Recipient creation timestamp")
+    updated_at: str = Field(..., description="Recipient last update timestamp")
+
+    class Config:
+        """Pydantic RecipientListResponse configuration."""
+
+        json_encoders = {
+            Decimal: str,
+        }
+
+
+class BlockchainWalletResponse(BaseModel):
+    """Response model for blockchain wallet operations."""
+
+    id: str = Field(..., description="Wallet's unique identifier")
+    name: str = Field(..., description="Wallet name")
+    provider: str = Field(..., description="Provider name (e.g., 'FIREBLOCKS', 'OPEN_TRADE')")
+    wallet_id: str = Field(..., description="Wallet ID")
+    provider_id: str | None = Field(None, description="Provider ID")
+    network: str = Field(..., description="Blockchain network (e.g., 'POLYGON')")
+    enabled: bool = Field(..., description="Whether the wallet is enabled")
+    category: str | None = Field(None, description="Wallet category")
+    owner: str | None = Field(None, description="Wallet owner")
+    created_at: str = Field(..., description="Wallet creation timestamp")
+
+    class Config:
+        """Pydantic BlockchainWalletResponse configuration."""
+
+        json_encoders = {
+            Decimal: str,
+        }
+
+
 class TokenBalance(BaseModel):
     """Model for individual token balance."""
 

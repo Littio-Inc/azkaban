@@ -6,10 +6,12 @@ from unittest.mock import MagicMock, patch
 from app.common.apis.cassandra.client import CassandraClient
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletResponse,
     CollateralSetCTO,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
+    RecipientListResponse,
     RecipientResponse,
     VaultAccountCTO,
     VaultAccountResponse,
@@ -528,4 +530,157 @@ class TestCassandraClient(unittest.TestCase):
         self.assertEqual(result.vault_address, vault_address)
         self.assertEqual(result.vault_overview_cto.name, "Dynamic Test Vault 001")
         mock_agent.get.assert_called_once_with(req_path=f"/v1/opentrade/vaults/{vault_address}")
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_recipients_list_success(self, mock_get_secret, mock_agent_class):
+        """Test successful recipients list retrieval."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {
+            "recipients": [
+                {
+                    "id": "b7d30b7a-0c66-411d-a0e6-1b3ae385132e",
+                    "user_id": "dd329366-a9ff-4f5b-a606-6ce0e15b5a83",
+                    "type": "transfer",
+                    "first_name": None,
+                    "last_name": None,
+                    "company_name": "Banco BBVA Colombia S.A",
+                    "document_type": "NIT",
+                    "document_number": "90156317234",
+                    "bank_code": "1013",
+                    "account_number": "31231231233",
+                    "account_type": "savings",
+                    "cobre_counterparty_id": None,
+                    "provider": "BBVA",
+                    "created_at": "2025-12-31T21:05:11.794956+00:00",
+                    "updated_at": "2025-12-31T21:05:11.794956+00:00",
+                }
+            ]
+        }
+
+        client = CassandraClient()
+        result = client.get_recipients_list(provider="BBVA")
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], RecipientListResponse)
+        self.assertEqual(result[0].id, "b7d30b7a-0c66-411d-a0e6-1b3ae385132e")
+        self.assertEqual(result[0].provider, "BBVA")
+        mock_agent.get.assert_called_once_with(
+            req_path="/v1/recipients",
+            query_params={"provider": "BBVA"},
+        )
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_recipients_list_with_exclude_provider(self, mock_get_secret, mock_agent_class):
+        """Test recipients list retrieval with exclude_provider filter."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {"recipients": []}
+
+        client = CassandraClient()
+        result = client.get_recipients_list(exclude_provider="COBRE")
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 0)
+        mock_agent.get.assert_called_once_with(
+            req_path="/v1/recipients",
+            query_params={"exclude_provider": "COBRE"},
+        )
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_recipients_list_no_filters(self, mock_get_secret, mock_agent_class):
+        """Test recipients list retrieval without filters."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {"recipients": []}
+
+        client = CassandraClient()
+        result = client.get_recipients_list()
+
+        self.assertIsInstance(result, list)
+        mock_agent.get.assert_called_once_with(
+            req_path="/v1/recipients",
+            query_params=None,
+        )
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_blockchain_wallets_success(self, mock_get_secret, mock_agent_class):
+        """Test successful blockchain wallets retrieval."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {
+            "wallets": [
+                {
+                    "id": "80cb0fb1-ddce-499a-a84d-927a9c30944a",
+                    "name": "Littio-Test",
+                    "provider": "OPEN_TRADE",
+                    "wallet_id": "0x3390885691531951317BB47afE6F304B19bb6140",
+                    "provider_id": "5",
+                    "network": "POLYGON",
+                    "enabled": True,
+                    "category": "Manual retiros",
+                    "owner": "LITTIO",
+                    "created_at": "2025-12-31T15:22:32.738242+00:00",
+                }
+            ]
+        }
+
+        client = CassandraClient()
+        result = client.get_blockchain_wallets(provider="FIREBLOCKS")
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], BlockchainWalletResponse)
+        self.assertEqual(result[0].id, "80cb0fb1-ddce-499a-a84d-927a9c30944a")
+        self.assertEqual(result[0].provider, "OPEN_TRADE")
+        mock_agent.get.assert_called_once_with(
+            req_path="/v1/blockchain-wallets",
+            query_params={"provider": "FIREBLOCKS"},
+        )
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_blockchain_wallets_with_exclude_provider(self, mock_get_secret, mock_agent_class):
+        """Test blockchain wallets retrieval with exclude_provider filter."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {"wallets": []}
+
+        client = CassandraClient()
+        result = client.get_blockchain_wallets(exclude_provider="COBRE")
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 0)
+        mock_agent.get.assert_called_once_with(
+            req_path="/v1/blockchain-wallets",
+            query_params={"exclude_provider": "COBRE"},
+        )
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_blockchain_wallets_no_filters(self, mock_get_secret, mock_agent_class):
+        """Test blockchain wallets retrieval without filters."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {"wallets": []}
+
+        client = CassandraClient()
+        result = client.get_blockchain_wallets()
+
+        self.assertIsInstance(result, list)
+        mock_agent.get.assert_called_once_with(
+            req_path="/v1/blockchain-wallets",
+            query_params=None,
+        )
 

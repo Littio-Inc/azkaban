@@ -6,9 +6,11 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletResponse,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
+    RecipientListResponse,
     RecipientResponse,
 )
 from app.common.apis.cassandra.errors import CassandraAPIClientError
@@ -736,3 +738,133 @@ def get_vault_overview(
             detail="Error retrieving vault overview from monetization service",
         ) from exc
     return vault_overview_data.model_dump()
+
+
+@router.get("/recipients")
+def get_recipients_list(
+    provider: str | None = Query(None, description="Provider name to filter by"),
+    exclude_provider: str | None = Query(None, description="Provider name to exclude"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get recipients list from v1/recipients endpoint.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        provider: Optional provider name to filter by
+        exclude_provider: Optional provider name to exclude
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Recipients list from Cassandra with format {"recipients": [...]}
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Getting recipients list - provider: {provider}, exclude_provider: {exclude_provider}")
+
+    try:
+        recipients_data = MonetizationService.get_recipients_list(
+            provider=provider,
+            exclude_provider=exclude_provider,
+        )
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
+        error_detail = cassandra_error.error_detail or {}
+        logger.exception(
+            f"Error getting recipients list from Cassandra API (status: {error_status_code}): {cassandra_error}",
+        )
+        error_message, error_code = _extract_error_from_detail(error_detail)
+        raise HTTPException(
+            status_code=error_status_code,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: error_message,
+                    CODE_KEY: error_code,
+                },
+            },
+        ) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error getting recipients list from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error retrieving recipients list from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    recipients_list = [recipient.model_dump() for recipient in recipients_data]
+    return {"recipients": recipients_list}
+
+
+@router.get("/blockchain-wallets")
+def get_blockchain_wallets(
+    provider: str | None = Query(None, description="Provider name to filter by"),
+    exclude_provider: str | None = Query(None, description="Provider name to exclude"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get blockchain wallets from v1/blockchain-wallets endpoint.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        provider: Optional provider name to filter by
+        exclude_provider: Optional provider name to exclude
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Blockchain wallets list from Cassandra with format {"wallets": [...]}
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Getting blockchain wallets - provider: {provider}, exclude_provider: {exclude_provider}")
+
+    try:
+        wallets_data = MonetizationService.get_blockchain_wallets(
+            provider=provider,
+            exclude_provider=exclude_provider,
+        )
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
+        error_detail = cassandra_error.error_detail or {}
+        logger.exception(
+            f"Error getting blockchain wallets from Cassandra API (status: {error_status_code}): {cassandra_error}",
+        )
+        error_message, error_code = _extract_error_from_detail(error_detail)
+        raise HTTPException(
+            status_code=error_status_code,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: error_message,
+                    CODE_KEY: error_code,
+                },
+            },
+        ) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error getting blockchain wallets from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error retrieving blockchain wallets from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    wallets_list = [wallet.model_dump() for wallet in wallets_data]
+    return {"wallets": wallets_list}

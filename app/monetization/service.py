@@ -5,10 +5,12 @@ import logging
 from app.common.apis.cassandra.client import CassandraClient
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletResponse,
     PayoutCreateRequest,
     PayoutHistoryResponse,
     PayoutResponse,
     QuoteResponse,
+    RecipientListResponse,
     RecipientResponse,
     VaultAccountResponse,
     VaultOverviewResponse,
@@ -146,6 +148,40 @@ def _call_get_vault_overview(vault_address: str) -> VaultOverviewResponse:
     """
     client = _get_client()
     return client.get_vault_overview(vault_address)
+
+
+def _call_get_recipients_list(
+    provider: str | None = None,
+    exclude_provider: str | None = None,
+) -> list[RecipientListResponse]:
+    """Call get_recipients_list on client.
+
+    Args:
+        provider: Optional provider name to filter by
+        exclude_provider: Optional provider name to exclude
+
+    Returns:
+        List of RecipientListResponse objects
+    """
+    client = _get_client()
+    return client.get_recipients_list(provider=provider, exclude_provider=exclude_provider)
+
+
+def _call_get_blockchain_wallets(
+    provider: str | None = None,
+    exclude_provider: str | None = None,
+) -> list[BlockchainWalletResponse]:
+    """Call get_blockchain_wallets on client.
+
+    Args:
+        provider: Optional provider name to filter by
+        exclude_provider: Optional provider name to exclude
+
+    Returns:
+        List of BlockchainWalletResponse objects
+    """
+    client = _get_client()
+    return client.get_blockchain_wallets(provider=provider, exclude_provider=exclude_provider)
 
 
 class MonetizationService:
@@ -346,4 +382,58 @@ class MonetizationService:
             raise
         except Exception as exc:
             logger.error(f"Unexpected error getting vault overview: {exc}")
+            raise
+
+    @staticmethod
+    def get_recipients_list(
+        provider: str | None = None,
+        exclude_provider: str | None = None,
+    ) -> list[RecipientListResponse]:
+        """Get recipients list from v1/recipients endpoint.
+
+        Args:
+            provider: Optional provider name to filter by
+            exclude_provider: Optional provider name to exclude
+
+        Returns:
+            List of RecipientListResponse objects
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_get_recipients_list(provider=provider, exclude_provider=exclude_provider)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error getting recipients list: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error getting recipients list: {exc}")
+            raise
+
+    @staticmethod
+    def get_blockchain_wallets(
+        provider: str | None = None,
+        exclude_provider: str | None = None,
+    ) -> list[BlockchainWalletResponse]:
+        """Get blockchain wallets from v1/blockchain-wallets endpoint.
+
+        Args:
+            provider: Optional provider name to filter by
+            exclude_provider: Optional provider name to exclude
+
+        Returns:
+            List of BlockchainWalletResponse objects
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_get_blockchain_wallets(provider=provider, exclude_provider=exclude_provider)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error getting blockchain wallets: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error getting blockchain wallets: {exc}")
             raise
