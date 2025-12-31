@@ -17,6 +17,9 @@ from app.common.apis.cassandra.dtos import (
 
 # Constants
 PATH_SEPARATOR = "/"
+PROVIDER_KEY = "provider"
+RECIPIENTS_KEY = "recipients"
+WALLETS_KEY = "wallets"
 
 
 class CassandraClient:
@@ -62,7 +65,7 @@ class CassandraClient:
                 "amount": amount,
                 "base_currency": base_currency,
                 "quote_currency": quote_currency,
-                "provider": provider,
+                PROVIDER_KEY: provider,
             },
         )
         return QuoteResponse(**response_data)
@@ -222,7 +225,7 @@ class CassandraClient:
         req_path = "/v1/recipients"
         query_params = {}
         if provider:
-            query_params["provider"] = provider
+            query_params[PROVIDER_KEY] = provider
         if exclude_provider:
             query_params["exclude_provider"] = exclude_provider
 
@@ -252,7 +255,7 @@ class CassandraClient:
         req_path = "/v1/blockchain-wallets"
         query_params = {}
         if provider:
-            query_params["provider"] = provider
+            query_params[PROVIDER_KEY] = provider
         if exclude_provider:
             query_params["exclude_provider"] = exclude_provider
 
@@ -275,8 +278,8 @@ class CassandraClient:
             CassandraAPIClientError: If parsing fails
         """
         # Handle response format: {'recipients': [...], 'total': N}
-        if isinstance(response_data, dict) and "recipients" in response_data:
-            recipients_list = response_data["recipients"]
+        if isinstance(response_data, dict) and RECIPIENTS_KEY in response_data:
+            recipients_list = response_data[RECIPIENTS_KEY]
             return [RecipientResponse(**recipient) for recipient in recipients_list]
         # Handle direct list format
         if isinstance(response_data, list):
@@ -297,8 +300,8 @@ class CassandraClient:
             CassandraAPIClientError: If parsing fails
         """
         # Handle response format: {'recipients': [...]}
-        if isinstance(response_data, dict) and "recipients" in response_data:
-            recipients_list = response_data["recipients"]
+        if isinstance(response_data, dict) and RECIPIENTS_KEY in response_data:
+            recipients_list = response_data[RECIPIENTS_KEY]
             return [RecipientListResponse(**recipient) for recipient in recipients_list]
         # Handle direct list format
         if isinstance(response_data, list):
@@ -319,8 +322,8 @@ class CassandraClient:
             CassandraAPIClientError: If parsing fails
         """
         # Handle response format: {'wallets': [...]}
-        if isinstance(response_data, dict) and "wallets" in response_data:
-            wallets_list = response_data["wallets"]
+        if isinstance(response_data, dict) and WALLETS_KEY in response_data:
+            wallets_list = response_data[WALLETS_KEY]
             return [BlockchainWalletResponse(**wallet) for wallet in wallets_list]
         # Handle direct list format
         if isinstance(response_data, list):

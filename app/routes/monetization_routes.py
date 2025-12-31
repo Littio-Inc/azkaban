@@ -6,11 +6,9 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
-    BlockchainWalletResponse,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
-    RecipientListResponse,
     RecipientResponse,
 )
 from app.common.apis.cassandra.errors import CassandraAPIClientError
@@ -740,6 +738,32 @@ def get_vault_overview(
     return vault_overview_data.model_dump()
 
 
+def _handle_recipients_list_error(cassandra_error: CassandraAPIClientError) -> HTTPException:
+    """Handle Cassandra API error for recipients list endpoint.
+
+    Args:
+        cassandra_error: Cassandra API client error
+
+    Returns:
+        HTTPException: Formatted HTTP exception
+    """
+    error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
+    error_detail = cassandra_error.error_detail or {}
+    logger.exception(
+        f"Error getting recipients list from Cassandra API (status: {error_status_code}): {cassandra_error}",
+    )
+    error_message, error_code = _extract_error_from_detail(error_detail)
+    return HTTPException(
+        status_code=error_status_code,
+        detail={
+            ERROR_KEY: {
+                MESSAGE_KEY: error_message,
+                CODE_KEY: error_code,
+            },
+        },
+    )
+
+
 @router.get("/recipients")
 def get_recipients_list(
     provider: str | None = Query(None, description="Provider name to filter by"),
@@ -775,21 +799,7 @@ def get_recipients_list(
             detail=CONFIG_ERROR_DETAIL,
         ) from config_error
     except CassandraAPIClientError as cassandra_error:
-        error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
-        error_detail = cassandra_error.error_detail or {}
-        logger.exception(
-            f"Error getting recipients list from Cassandra API (status: {error_status_code}): {cassandra_error}",
-        )
-        error_message, error_code = _extract_error_from_detail(error_detail)
-        raise HTTPException(
-            status_code=error_status_code,
-            detail={
-                ERROR_KEY: {
-                    MESSAGE_KEY: error_message,
-                    CODE_KEY: error_code,
-                },
-            },
-        ) from cassandra_error
+        raise _handle_recipients_list_error(cassandra_error) from cassandra_error
     except Exception as exc:
         logger.exception(f"Error getting recipients list from monetization service: {exc}")
         raise HTTPException(
@@ -801,8 +811,33 @@ def get_recipients_list(
                 },
             },
         ) from exc
-    recipients_list = [recipient.model_dump() for recipient in recipients_data]
-    return {"recipients": recipients_list}
+    return {"recipients": [recipient.model_dump() for recipient in recipients_data]}
+
+
+def _handle_blockchain_wallets_error(cassandra_error: CassandraAPIClientError) -> HTTPException:
+    """Handle Cassandra API error for blockchain wallets endpoint.
+
+    Args:
+        cassandra_error: Cassandra API client error
+
+    Returns:
+        HTTPException: Formatted HTTP exception
+    """
+    error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
+    error_detail = cassandra_error.error_detail or {}
+    logger.exception(
+        f"Error getting blockchain wallets from Cassandra API (status: {error_status_code}): {cassandra_error}",
+    )
+    error_message, error_code = _extract_error_from_detail(error_detail)
+    return HTTPException(
+        status_code=error_status_code,
+        detail={
+            ERROR_KEY: {
+                MESSAGE_KEY: error_message,
+                CODE_KEY: error_code,
+            },
+        },
+    )
 
 
 @router.get("/blockchain-wallets")
@@ -840,21 +875,7 @@ def get_blockchain_wallets(
             detail=CONFIG_ERROR_DETAIL,
         ) from config_error
     except CassandraAPIClientError as cassandra_error:
-        error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
-        error_detail = cassandra_error.error_detail or {}
-        logger.exception(
-            f"Error getting blockchain wallets from Cassandra API (status: {error_status_code}): {cassandra_error}",
-        )
-        error_message, error_code = _extract_error_from_detail(error_detail)
-        raise HTTPException(
-            status_code=error_status_code,
-            detail={
-                ERROR_KEY: {
-                    MESSAGE_KEY: error_message,
-                    CODE_KEY: error_code,
-                },
-            },
-        ) from cassandra_error
+        raise _handle_blockchain_wallets_error(cassandra_error) from cassandra_error
     except Exception as exc:
         logger.exception(f"Error getting blockchain wallets from monetization service: {exc}")
         raise HTTPException(
@@ -866,5 +887,4 @@ def get_blockchain_wallets(
                 },
             },
         ) from exc
-    wallets_list = [wallet.model_dump() for wallet in wallets_data]
-    return {"wallets": wallets_list}
+    return {"wallets": [wallet.model_dump() for wallet in wallets_data]}
