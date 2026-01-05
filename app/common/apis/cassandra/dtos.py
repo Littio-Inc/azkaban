@@ -70,6 +70,7 @@ class RecipientListResponse(BaseModel):
     account_type: str | None = Field(None, description="Account type (e.g., 'savings')")
     cobre_counterparty_id: str | None = Field(None, description="Cobre counterparty ID")
     provider: str = Field(..., description="Provider name (e.g., 'BBVA', 'ZULU', 'COBRE')")
+    enabled: bool | None = Field(None, description="Whether the recipient is enabled")
     created_at: str = Field(..., description="Recipient creation timestamp")
     updated_at: str = Field(..., description="Recipient last update timestamp")
 
@@ -79,6 +80,58 @@ class RecipientListResponse(BaseModel):
         json_encoders = {
             Decimal: str,
         }
+
+
+class RecipientCreateRequest(BaseModel):
+    """Request model for creating a recipient."""
+
+    user_id: str = Field(..., description="User ID associated with the recipient")
+    type: str = Field(..., description="Recipient type (e.g., 'transfer')")
+    first_name: str = Field(..., description="Recipient's first name")
+    last_name: str = Field(..., description="Recipient's last name")
+    company_name: str | None = Field(None, description="Recipient's company name")
+    document_type: str = Field(..., description="Document type (e.g., 'CC')")
+    document_number: str = Field(..., description="Document number")
+    bank_code: str = Field(..., description="Bank code")
+    account_number: str = Field(..., description="Account number")
+    account_type: str = Field(..., description="Account type (e.g., 'checking')")
+    provider: str = Field(..., description="Provider name (e.g., 'cobre')")
+    enabled: bool = Field(..., description="Whether the recipient is enabled")
+
+
+class RecipientUpdateRequest(BaseModel):
+    """Request model for updating a recipient."""
+
+    first_name: str | None = Field(None, description="Recipient's first name")
+    last_name: str | None = Field(None, description="Recipient's last name")
+    company_name: str | None = Field(None, description="Recipient's company name")
+    document_type: str | None = Field(None, description="Document type (e.g., 'CC')")
+    document_number: str | None = Field(None, description="Document number")
+    bank_code: str | None = Field(None, description="Bank code")
+    account_number: str | None = Field(None, description="Account number")
+    account_type: str | None = Field(None, description="Account type (e.g., 'checking')")
+    enabled: bool | None = Field(None, description="Whether the recipient is enabled")
+
+
+class BlockchainWalletCreateRequest(BaseModel):
+    """Request model for creating a blockchain wallet."""
+
+    name: str = Field(..., description="Wallet name")
+    provider: str = Field(..., description="Provider name (e.g., 'cobre')")
+    wallet_id: str = Field(..., description="Wallet ID")
+    provider_id: str | None = Field(None, description="Provider ID")
+    network: str = Field(..., description="Blockchain network (e.g., 'ethereum')")
+    enabled: bool = Field(..., description="Whether the wallet is enabled")
+    category: str | None = Field(None, description="Wallet category")
+    owner: str | None = Field(None, description="Wallet owner")
+
+
+class BlockchainWalletUpdateRequest(BaseModel):
+    """Request model for updating a blockchain wallet."""
+
+    name: str | None = Field(None, description="Wallet name")
+    enabled: bool | None = Field(None, description="Whether the wallet is enabled")
+    category: str | None = Field(None, description="Wallet category")
 
 
 class BlockchainWalletResponse(BaseModel):
@@ -94,6 +147,7 @@ class BlockchainWalletResponse(BaseModel):
     category: str | None = Field(None, description="Wallet category")
     owner: str | None = Field(None, description="Wallet owner")
     created_at: str = Field(..., description="Wallet creation timestamp")
+    updated_at: str = Field(..., description="Wallet last update timestamp")
 
     class Config:
         """Pydantic BlockchainWalletResponse configuration."""

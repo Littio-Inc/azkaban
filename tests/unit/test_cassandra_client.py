@@ -6,13 +6,17 @@ from unittest.mock import MagicMock, patch
 from app.common.apis.cassandra.client import CassandraClient
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletCreateRequest,
     BlockchainWalletResponse,
+    BlockchainWalletUpdateRequest,
     CollateralSetCTO,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
+    RecipientCreateRequest,
     RecipientListResponse,
     RecipientResponse,
+    RecipientUpdateRequest,
     VaultAccountCTO,
     VaultAccountResponse,
     VaultListItem,
@@ -630,6 +634,7 @@ class TestCassandraClient(unittest.TestCase):
                     "category": "Manual retiros",
                     "owner": "LITTIO",
                     "created_at": "2025-12-31T15:22:32.738242+00:00",
+                    "updated_at": "2025-12-31T15:22:32.738242+00:00",
                 }
             ]
         }
@@ -683,4 +688,167 @@ class TestCassandraClient(unittest.TestCase):
             req_path="/v1/blockchain-wallets",
             query_params=None,
         )
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_create_recipient_success(self, mock_get_secret, mock_agent_class):
+        """Test successful recipient creation."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.post.return_value = {
+            "id": "recipient-id-123",
+            "user_id": USER_ID_TEST,
+            "type": "transfer",
+            "first_name": "John",
+            "last_name": "Doe",
+            "provider": "cobre",
+            "enabled": True,
+            "created_at": TEST_TIMESTAMP,
+            "updated_at": TEST_TIMESTAMP,
+        }
+
+        client = CassandraClient()
+        recipient_data = RecipientCreateRequest(
+            user_id=USER_ID_TEST,
+            type="transfer",
+            first_name="John",
+            last_name="Doe",
+            document_type="CC",
+            document_number="1234567890",
+            bank_code="001",
+            account_number="123456789",
+            account_type="checking",
+            provider="cobre",
+            enabled=True,
+        )
+        result = client.create_recipient(recipient_data)
+
+        self.assertIsInstance(result, RecipientListResponse)
+        self.assertEqual(result.id, "recipient-id-123")
+        mock_agent.post.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_update_recipient_success(self, mock_get_secret, mock_agent_class):
+        """Test successful recipient update."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.put.return_value = {
+            "id": "recipient-id-123",
+            "user_id": USER_ID_TEST,
+            "type": "transfer",
+            "first_name": "Jane",
+            "last_name": "Smith",
+            "provider": "cobre",
+            "enabled": True,
+            "created_at": TEST_TIMESTAMP,
+            "updated_at": TEST_TIMESTAMP,
+        }
+
+        client = CassandraClient()
+        recipient_data = RecipientUpdateRequest(first_name="Jane", last_name="Smith")
+        result = client.update_recipient("recipient-id-123", recipient_data)
+
+        self.assertIsInstance(result, RecipientListResponse)
+        self.assertEqual(result.first_name, "Jane")
+        mock_agent.put.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_delete_recipient_success(self, mock_get_secret, mock_agent_class):
+        """Test successful recipient deletion."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_response = MagicMock()
+        mock_response.status_code = 204
+        mock_agent.delete.return_value = None
+
+        client = CassandraClient()
+        client.delete_recipient("recipient-id-123")
+
+        mock_agent.delete.assert_called_once_with(req_path="/v1/recipients/recipient-id-123")
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_create_blockchain_wallet_success(self, mock_get_secret, mock_agent_class):
+        """Test successful blockchain wallet creation."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.post.return_value = {
+            "id": "wallet-id-123",
+            "name": "Test Wallet",
+            "provider": "cobre",
+            "wallet_id": "wallet_12345",
+            "provider_id": "provider_67890",
+            "network": "ethereum",
+            "enabled": True,
+            "category": "exchange",
+            "owner": "team-backend",
+            "created_at": TEST_TIMESTAMP,
+            "updated_at": TEST_TIMESTAMP,
+        }
+
+        client = CassandraClient()
+        wallet_data = BlockchainWalletCreateRequest(
+            name="Test Wallet",
+            provider="cobre",
+            wallet_id="wallet_12345",
+            provider_id="provider_67890",
+            network="ethereum",
+            enabled=True,
+            category="exchange",
+            owner="team-backend",
+        )
+        result = client.create_blockchain_wallet(wallet_data)
+
+        self.assertIsInstance(result, BlockchainWalletResponse)
+        self.assertEqual(result.id, "wallet-id-123")
+        mock_agent.post.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_update_blockchain_wallet_success(self, mock_get_secret, mock_agent_class):
+        """Test successful blockchain wallet update."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.put.return_value = {
+            "id": "wallet-id-123",
+            "name": "Updated Wallet",
+            "provider": "cobre",
+            "wallet_id": "wallet_12345",
+            "provider_id": "provider_67890",
+            "network": "ethereum",
+            "enabled": False,
+            "category": "trading",
+            "owner": "team-backend",
+            "created_at": TEST_TIMESTAMP,
+            "updated_at": TEST_TIMESTAMP,
+        }
+
+        client = CassandraClient()
+        wallet_data = BlockchainWalletUpdateRequest(name="Updated Wallet", enabled=False, category="trading")
+        result = client.update_blockchain_wallet("wallet-id-123", wallet_data)
+
+        self.assertIsInstance(result, BlockchainWalletResponse)
+        self.assertEqual(result.name, "Updated Wallet")
+        mock_agent.put.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_delete_blockchain_wallet_success(self, mock_get_secret, mock_agent_class):
+        """Test successful blockchain wallet deletion."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.delete.return_value = None
+
+        client = CassandraClient()
+        client.delete_blockchain_wallet("wallet-id-123")
+
+        mock_agent.delete.assert_called_once_with(req_path="/v1/blockchain-wallets/wallet-id-123")
 
