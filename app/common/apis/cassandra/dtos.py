@@ -25,7 +25,7 @@ class QuoteResponse(BaseModel):
     spread: Decimal | None = Field(None, description="Spread in basis points")
     # Supra-specific fields
     supra_quote_id: str | None = Field(None, description="Supra quote ID (Supra provider only)")
-    exchange_confirmation_token: str | None = Field(None, description="Exchange confirmation token for Supra (required for exchange_convert)")
+    exchange_confirmation_token: str | None = Field(None, description="Exchange confirmation token for Supra")
 
     model_config = ConfigDict(
         extra="allow",  # Allow extra fields that are not defined in the model
