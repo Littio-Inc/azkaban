@@ -138,6 +138,48 @@ class TestDiagonRoutes(unittest.TestCase):
         mock_client.get_accounts.assert_called_once()
 
     @patch("app.routes.diagon_routes.DiagonClient")
+    def test_get_vault_accounts_with_null_block_height(self, mock_diagon_service):
+        """Test getting accounts when blockHeight is None in asset."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_accounts_data = [
+            {
+                "id": "5",
+                "name": "Test Account",
+                "hiddenOnUI": False,
+                "autoFuel": False,
+                "assets": [
+                    {
+                        "id": "AMOY_POLYGON_TEST",
+                        "total": "0.2",
+                        "balance": "0.2",
+                        "lockedAmount": "0",
+                        "available": "0.2",
+                        "pending": "0",
+                        "frozen": "0",
+                        "staked": "0",
+                        "blockHeight": None,
+                        "blockHash": "0xbd4b5221dbded68a6c76f809b31f87732b29e2972bf0d9075d2e09e3e2a46fcd"
+                    }
+                ]
+            }
+        ]
+
+        mock_client = mock_diagon_service.return_value
+        mock_client.get_accounts.return_value = [AccountResponse(**account) for account in mock_accounts_data]
+
+        response = self.client.get("/v1/vault/accounts")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["id"], "5")
+        self.assertEqual(len(data[0]["assets"]), 1)
+        self.assertIsNone(data[0]["assets"][0]["blockHeight"])
+        self.assertEqual(data[0]["assets"][0]["blockHash"], "0xbd4b5221dbded68a6c76f809b31f87732b29e2972bf0d9075d2e09e3e2a46fcd")
+        mock_client.get_accounts.assert_called_once()
+
+    @patch("app.routes.diagon_routes.DiagonClient")
     def test_refresh_balance_success(self, mock_diagon_service):
         """Test refreshing balance successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
