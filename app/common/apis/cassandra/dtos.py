@@ -130,7 +130,7 @@ class BalanceResponse(BaseModel):
 class PayoutCreateRequest(BaseModel):
     """Request model for creating a payout."""
 
-    recipient_id: str = Field(..., description="UUID of the recipient for the payout")
+    recipient_id: str | None = Field(None, description="UUID of the recipient for the payout")
     wallet_id: str = Field(..., description="UUID of the wallet for the payout")
     reference: str | None = Field(None, description="Custom reference for the payout")
     base_currency: str = Field(..., description="Base currency code according to ISO-4217")
@@ -141,6 +141,7 @@ class PayoutCreateRequest(BaseModel):
     token: str = Field(..., description="Token type to use for the payout (USDC or USDT)")
     provider: str = Field(..., description="Provider name (kira, cobre, supra)")
     user_id: str | None = Field(None, description="User ID from database (optional, will be set by Azkaban)")
+    exchange_only: bool = Field(False, description="If true, only perform exchange without recipient (for B2C)")
 
     class Config:
         """Pydantic PayoutCreateRequest configuration."""
@@ -155,7 +156,7 @@ class PayoutResponse(BaseModel):
 
     payout_id: str = Field(..., description="Payout's unique identifier")
     user_id: str = Field(..., description="ID of the user")
-    recipient_id: str = Field(..., description="ID of the recipient")
+    recipient_id: str | None = Field(None, description="ID of the recipient (optional for exchange-only payouts)")
     quote_id: str = Field(..., description="ID of the quote used")
     reference: str | None = Field(None, description="External reference for the payout")
     from_amount: str = Field(..., description="Amount in from currency")
