@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.common.apis.diagon.client import DiagonClient
 from app.common.apis.diagon.dtos import EstimateFeeRequest, VaultToVaultRequest
@@ -241,12 +241,13 @@ def get_external_wallets(
     return wallets_data
 
 
-def _create_transaction_data(request: VaultToVaultRequest) -> dict:
+def _create_transaction_data(request: VaultToVaultRequest, idempotency_key: str | None = None) -> dict:
     """Create transaction data from Diagon client.
 
     Args:
         request: VaultToVaultRequest with network, service, token,
             sourceVaultId, destinationWalletId, feeLevel, and amount
+        idempotency_key: Optional idempotency key to send as header
 
     Returns:
         Dictionary with transaction response
@@ -255,13 +256,18 @@ def _create_transaction_data(request: VaultToVaultRequest) -> dict:
         DiagonAPIClientError: If API call fails
     """
     client = DiagonClient()
-    response = client.vault_to_vault(request)
+    response = client.vault_to_vault(request, idempotency_key=idempotency_key)
     return response.model_dump()
 
 
 @router.post("/vault/transactions/create-transaction")
 def create_transaction(
     request: VaultToVaultRequest,
+    idempotency_key: str | None = Header(  # noqa: WPS404
+        None,
+        alias="idempotency-key",
+        description="Idempotency key for the request"
+    ),
     current_user: dict = Depends(get_current_user)  # noqa: WPS404
 ):
     """Create a transaction from Diagon (vault-to-vault, vault-to-external, etc.).
@@ -271,6 +277,7 @@ def create_transaction(
     Args:
         request: VaultToVaultRequest with network, service, token,
             sourceVaultId, destinationWalletId, feeLevel, and amount
+        idempotency_key: Optional idempotency key header (idempotency-key)
         current_user: Current authenticated user
 
     Returns:
@@ -288,7 +295,7 @@ def create_transaction(
     )
 
     try:
-        transaction_data = _create_transaction_data(request)
+        transaction_data = _create_transaction_data(request, idempotency_key=idempotency_key)
     except DiagonAPIClientError as api_error:
         logger.error(DIAGON_API_ERROR_MSG, api_error)
         raise HTTPException(

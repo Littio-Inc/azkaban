@@ -501,6 +501,59 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertEqual(request_obj.destinationWalletId, destination_wallet_id)
         self.assertEqual(request_obj.feeLevel, fee_level)
         self.assertEqual(request_obj.amount, amount)
+        # Verify idempotency_key is not passed when not provided
+        self.assertEqual(call_args.kwargs.get("idempotency_key"), None)
+
+    @patch("app.routes.diagon_routes.DiagonClient")
+    def test_create_transaction_with_idempotency_key(self, mock_diagon_service):
+        """Test creating transaction with idempotency-key header."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        transaction_id = fake.uuid4()
+        status = fake.random_element(elements=("SUBMITTED", "PENDING", "COMPLETED"))
+        network = fake.random_element(elements=("polygon", "ethereum", "bitcoin"))
+        service = fake.random_element(elements=("BLOCKCHAIN_WITHDRAWAL", "BLOCKCHAIN_DEPOSIT"))
+        token = fake.random_element(elements=("usdc", "usdt", "eth", "btc"))
+        source_vault_id = str(fake.random_int(min=1, max=100))
+        destination_wallet_id = fake.hexify(text="0x^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        fee_level = fake.random_element(elements=("HIGH", "MEDIUM", "LOW"))
+        amount = str(fake.pydecimal(left_digits=2, right_digits=2, positive=True))
+        idempotency_key = fake.uuid4()
+
+        mock_response_data = {
+            "id": transaction_id,
+            "status": status
+        }
+
+        mock_client = mock_diagon_service.return_value
+        mock_client.vault_to_vault.return_value = VaultToVaultResponse(**mock_response_data)
+
+        request_data = {
+            "network": network,
+            "service": service,
+            "token": token,
+            "sourceVaultId": source_vault_id,
+            "destinationWalletId": destination_wallet_id,
+            "feeLevel": fee_level,
+            "amount": amount
+        }
+
+        response = self.client.post(
+            "/v1/vault/transactions/create-transaction",
+            json=request_data,
+            headers={"idempotency-key": idempotency_key}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], transaction_id)
+        self.assertEqual(data["status"], status)
+        mock_client.vault_to_vault.assert_called_once()
+        call_args = mock_client.vault_to_vault.call_args
+        request_obj = call_args[0][0]
+        self.assertIsInstance(request_obj, VaultToVaultRequest)
+        # Verify idempotency_key is passed from header
+        self.assertEqual(call_args.kwargs.get("idempotency_key"), idempotency_key)
 
     @patch("app.routes.diagon_routes.DiagonClient")
     def test_create_transaction_configuration_error(self, mock_diagon_service):

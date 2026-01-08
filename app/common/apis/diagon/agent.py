@@ -96,12 +96,14 @@ class DiagonAgent(RESTfulAPIAgent):
         self,
         req_path: str,
         json: Optional[dict[str, Any]] = None,
+        idempotency_key: Optional[str] = None,
     ) -> dict[str, Any]:
         """Make a POST request to the Diagon API.
 
         Args:
             req_path: Request path (e.g., "/vault/accounts/{account_id}/{asset}/balance")
             json: Optional JSON body
+            idempotency_key: Optional idempotency key to send as header
 
         Returns:
             Response data as dictionary
@@ -110,10 +112,17 @@ class DiagonAgent(RESTfulAPIAgent):
             DiagonAPIClientError: If API call fails
         """
         self._authenticate()
+
+        # Prepare headers with idempotency key if provided
+        headers = {}
+        if idempotency_key:
+            headers["idempotency-key"] = idempotency_key
+
         params = MakeRequestParams(
             method="POST",
             path=req_path,
             body=json,
+            headers=headers if headers else None,
         )
         response = self._make_request_with_error_handling(params)
         return response.json()
