@@ -104,12 +104,17 @@ class DiagonClient:
         # If single object, wrap in list
         return [ExternalWallet(**response_data)]
 
-    def vault_to_vault(self, request: VaultToVaultRequest) -> VaultToVaultResponse:
+    def vault_to_vault(
+        self,
+        request: VaultToVaultRequest,
+        idempotency_key: str | None = None
+    ) -> VaultToVaultResponse:
         """Create a vault-to-vault transaction.
 
         Args:
             request: VaultToVaultRequest containing network, service, token,
                 sourceVaultId, destinationWalletId, feeLevel, and amount
+            idempotency_key: Optional idempotency key to send as header
 
         Returns:
             VaultToVaultResponse containing transaction id and status
@@ -119,5 +124,9 @@ class DiagonClient:
         """
         req_path = f"{BASE_TRANSACTIONS_PATH}/vault-to-vault"
         request_dict = request.model_dump(by_alias=True)
-        response_data = self._agent.post(req_path=req_path, json=request_dict)
+        response_data = self._agent.post(
+            req_path=req_path,
+            json=request_dict,
+            idempotency_key=idempotency_key
+        )
         return VaultToVaultResponse(**response_data)

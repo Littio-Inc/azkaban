@@ -101,6 +101,45 @@ class TestDiagonAgent(unittest.TestCase):
         self.assertEqual(result, {"message": "Success", "idempotencyKey": "key-123"})
         mock_rest_agent.update_headers.assert_called_once_with({"X-API-KEY": API_KEY})
         mock_rest_agent.make_request.assert_called_once()
+        # Verify no idempotency-key header when not provided
+        call_args = mock_rest_agent.make_request.call_args
+        params = call_args[0][0]
+        self.assertIsNone(params.headers)
+        self.assertTrue(agent._api_key_is_valid)
+
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_post_with_idempotency_key(self, mock_get_secret, mock_rest_agent_class):
+        """Test successful POST request with idempotency key."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "DIAGON_BASE_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        mock_response = MagicMock(spec=Response)
+        mock_response.json.return_value = {"message": "Success", "id": "tx-123"}
+        mock_rest_agent.make_request.return_value = mock_response
+
+        agent = DiagonAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+        # Also mock update_headers on the actual agent instance
+        agent.update_headers = mock_rest_agent.update_headers
+        
+        idempotency_key = "test-idempotency-key-123"
+        result = agent.post(
+            "/transactions/vault-to-vault",
+            json={"network": "polygon", "amount": "10"},
+            idempotency_key=idempotency_key
+        )
+
+        self.assertEqual(result, {"message": "Success", "id": "tx-123"})
+        mock_rest_agent.update_headers.assert_called_once_with({"X-API-KEY": API_KEY})
+        mock_rest_agent.make_request.assert_called_once()
+        # Verify idempotency-key header is sent
+        call_args = mock_rest_agent.make_request.call_args
+        params = call_args[0][0]
+        self.assertIsNotNone(params.headers)
+        self.assertEqual(params.headers.get("idempotency-key"), idempotency_key)
         self.assertTrue(agent._api_key_is_valid)
 
     @patch(PATCH_REST_AGENT)

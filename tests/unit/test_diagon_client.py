@@ -341,6 +341,44 @@ class TestDiagonClient(unittest.TestCase):
         assert json_data["destinationWalletId"] == "0x958be847d9E7E93B897CfCc6A9E7065C273490a9"
         assert json_data["feeLevel"] == "HIGH"
         assert json_data["amount"] == "9.98"
+        # Verify idempotency_key is not passed when not provided
+        assert call_args.kwargs.get("idempotency_key") is None
+
+    @patch(PATCH_AGENT)
+    def test_vault_to_vault_with_idempotency_key(self, mock_agent_class):
+        """Test creating vault-to-vault transaction with idempotency key."""
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+
+        mock_response_data = {
+            "id": "c5e4379f-b344-4124-89b4-e8e76ea943a4",
+            "status": "SUBMITTED"
+        }
+        mock_agent.post.return_value = mock_response_data
+
+        request = VaultToVaultRequest(
+            network="polygon",
+            service="BLOCKCHAIN_WITHDRAWAL",
+            token="usdc",
+            sourceVaultId="5",
+            destinationWalletId="0x958be847d9E7E93B897CfCc6A9E7065C273490a9",
+            feeLevel="HIGH",
+            amount="9.98"
+        )
+        idempotency_key = "test-idempotency-key-123"
+
+        client = DiagonClient()
+        result = client.vault_to_vault(request, idempotency_key=idempotency_key)
+
+        assert isinstance(result, VaultToVaultResponse)
+        assert result.id == "c5e4379f-b344-4124-89b4-e8e76ea943a4"
+        assert result.status == "SUBMITTED"
+        mock_agent.post.assert_called_once()
+        call_args = mock_agent.post.call_args
+        assert call_args.kwargs["req_path"] == "/transactions/vault-to-vault"
+        assert "json" in call_args.kwargs
+        # Verify idempotency_key is passed to agent
+        assert call_args.kwargs.get("idempotency_key") == idempotency_key
 
 
 if __name__ == "__main__":
