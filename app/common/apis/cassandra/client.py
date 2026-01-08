@@ -129,7 +129,8 @@ class CassandraClient:
         # Use model_dump(mode="json") to get a JSON-ready dict directly
         # This ensures Decimal is serialized correctly via json_encoders
         # Since quote is now QuoteResponse (Pydantic model), all Decimals are handled automatically
-        payload = payout_data.model_dump(mode="json")
+        # Include None values to ensure exchange_only and recipient_id are properly sent
+        payload = payout_data.model_dump(mode="json", exclude_none=False)
         response_data = self._agent.post(
             req_path=req_path,
             json=payload,
