@@ -90,8 +90,8 @@ class RecipientCreateRequest(BaseModel):
 
     user_id: str = Field(..., description="User ID associated with the recipient")
     type: str = Field(..., description="Recipient type (e.g., 'transfer')")
-    first_name: str = Field(..., description="Recipient's first name")
-    last_name: str = Field(..., description="Recipient's last name")
+    first_name: str | None = Field(None, description="Recipient's first name")
+    last_name: str | None = Field(None, description="Recipient's last name")
     company_name: str | None = Field(None, description="Recipient's company name")
     document_type: str = Field(..., description="Document type (e.g., 'CC')")
     document_number: str = Field(..., description="Document number")
