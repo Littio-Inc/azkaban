@@ -31,6 +31,18 @@ from app.routes.permissions_routes import router as permissions_router
 from app.routes.roles_routes import router as roles_router
 from app.routes.users_routes import router as users_router
 
+# Configure logging for Lambda/CloudWatch
+# Set root logger to INFO level to capture all INFO logs
+# Lambda runtime sends all logs to CloudWatch Logs automatically
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+# Ensure root logger uses INFO level (Lambda default is WARNING)
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+
 app = FastAPI(title="Azkaban - Authentication Service")
 
 # Configure CORS - Must be added before routes
