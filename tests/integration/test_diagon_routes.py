@@ -176,8 +176,7 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertEqual(data[0]["id"], "5")
         self.assertEqual(len(data[0]["assets"]), 1)
         self.assertIsNone(data[0]["assets"][0]["blockHeight"])
-        expected_hash = "0xbd4b5221dbded68a6c76f809b31f87732b29e2972bf0d9075d2e09e3e2a46fcd"
-        self.assertEqual(data[0]["assets"][0]["blockHash"], expected_hash)
+        self.assertEqual(data[0]["assets"][0]["blockHash"], "0xbd4b5221dbded68a6c76f809b31f87732b29e2972bf0d9075d2e09e3e2a46fcd")
         mock_client.get_accounts.assert_called_once()
 
     @patch("app.routes.diagon_routes.DiagonClient")
@@ -751,3 +750,4 @@ class TestDiagonRoutes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
