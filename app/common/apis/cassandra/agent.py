@@ -110,6 +110,55 @@ class CassandraAgent(RESTfulAPIAgent):
         response = self._make_request_with_error_handling(params)
         return response.json()
 
+    def put(
+        self,
+        req_path: str,
+        json: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """Make a PUT request to the Cassandra API.
+
+        Args:
+            req_path: Request path (e.g., "/v1/blockchain-wallets/{id}")
+            json: Optional JSON body
+
+        Returns:
+            Response data as dictionary
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        self._authenticate()
+        params = MakeRequestParams(
+            method="PUT",
+            path=req_path,
+            body=json,
+        )
+        response = self._make_request_with_error_handling(params)
+        return response.json()
+
+    def delete(
+        self,
+        req_path: str,
+    ) -> None:
+        """Make a DELETE request to the Cassandra API.
+
+        Args:
+            req_path: Request path (e.g., "/v1/blockchain-wallets/{id}")
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        self._authenticate()
+        params = MakeRequestParams(
+            method="DELETE",
+            path=req_path,
+        )
+        response = self._make_request_with_error_handling(params)
+        # DELETE requests may return 204 No Content, so we don't try to parse JSON
+        if response.status_code == 204:
+            return
+        # If there's content, we could parse it, but for now we just return None
+
     def _authenticate(self) -> None:
         """Set the API key in the headers for authentication.
 

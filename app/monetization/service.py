@@ -5,13 +5,17 @@ import logging
 from app.common.apis.cassandra.client import CassandraClient
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletCreateRequest,
     BlockchainWalletResponse,
+    BlockchainWalletUpdateRequest,
     PayoutCreateRequest,
     PayoutHistoryResponse,
     PayoutResponse,
     QuoteResponse,
+    RecipientCreateRequest,
     RecipientListResponse,
     RecipientResponse,
+    RecipientUpdateRequest,
     VaultAccountResponse,
     VaultOverviewResponse,
     VaultsListResponse,
@@ -167,6 +171,59 @@ def _call_get_recipients_list(
     return client.get_recipients_list(provider=provider, exclude_provider=exclude_provider)
 
 
+def _call_create_recipient(
+    recipient_data: RecipientCreateRequest,
+) -> RecipientListResponse:
+    """Call create_recipient on client.
+
+    Args:
+        recipient_data: Recipient data to create
+
+    Returns:
+        RecipientListResponse object
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.create_recipient(recipient_data=recipient_data)
+
+
+def _call_update_recipient(
+    recipient_id: str,
+    recipient_data: RecipientUpdateRequest,
+) -> RecipientListResponse:
+    """Call update_recipient on client.
+
+    Args:
+        recipient_id: Recipient ID to update
+        recipient_data: Recipient data to update
+
+    Returns:
+        RecipientListResponse object
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.update_recipient(recipient_id=recipient_id, recipient_data=recipient_data)
+
+
+def _call_delete_recipient(
+    recipient_id: str,
+) -> None:
+    """Call delete_recipient on client.
+
+    Args:
+        recipient_id: Recipient ID to delete
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.delete_recipient(recipient_id=recipient_id)
+
+
 def _call_get_blockchain_wallets(
     provider: str | None = None,
     exclude_provider: str | None = None,
@@ -182,6 +239,59 @@ def _call_get_blockchain_wallets(
     """
     client = _get_client()
     return client.get_blockchain_wallets(provider=provider, exclude_provider=exclude_provider)
+
+
+def _call_create_blockchain_wallet(
+    wallet_data: BlockchainWalletCreateRequest,
+) -> BlockchainWalletResponse:
+    """Call create_blockchain_wallet on client.
+
+    Args:
+        wallet_data: Wallet data to create
+
+    Returns:
+        BlockchainWalletResponse object
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.create_blockchain_wallet(wallet_data=wallet_data)
+
+
+def _call_update_blockchain_wallet(
+    wallet_id: str,
+    wallet_data: BlockchainWalletUpdateRequest,
+) -> BlockchainWalletResponse:
+    """Call update_blockchain_wallet on client.
+
+    Args:
+        wallet_id: Wallet ID to update
+        wallet_data: Wallet data to update
+
+    Returns:
+        BlockchainWalletResponse object
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.update_blockchain_wallet(wallet_id=wallet_id, wallet_data=wallet_data)
+
+
+def _call_delete_blockchain_wallet(
+    wallet_id: str,
+) -> None:
+    """Call delete_blockchain_wallet on client.
+
+    Args:
+        wallet_id: Wallet ID to delete
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.delete_blockchain_wallet(wallet_id=wallet_id)
 
 
 class MonetizationService:
@@ -412,6 +522,80 @@ class MonetizationService:
             raise
 
     @staticmethod
+    def create_recipient(
+        recipient_data: RecipientCreateRequest,
+    ) -> RecipientListResponse:
+        """Create a recipient.
+
+        Args:
+            recipient_data: Recipient data to create
+
+        Returns:
+            RecipientListResponse object
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_create_recipient(recipient_data=recipient_data)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error creating recipient: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error creating recipient: {exc}")
+            raise
+
+    @staticmethod
+    def update_recipient(
+        recipient_id: str,
+        recipient_data: RecipientUpdateRequest,
+    ) -> RecipientListResponse:
+        """Update a recipient.
+
+        Args:
+            recipient_id: Recipient ID to update
+            recipient_data: Recipient data to update
+
+        Returns:
+            RecipientListResponse object
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_update_recipient(recipient_id=recipient_id, recipient_data=recipient_data)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error updating recipient: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error updating recipient: {exc}")
+            raise
+
+    @staticmethod
+    def delete_recipient(
+        recipient_id: str,
+    ) -> None:
+        """Delete a recipient.
+
+        Args:
+            recipient_id: Recipient ID to delete
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_delete_recipient(recipient_id=recipient_id)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error deleting recipient: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error deleting recipient: {exc}")
+            raise
+
+    @staticmethod
     def get_blockchain_wallets(
         provider: str | None = None,
         exclude_provider: str | None = None,
@@ -436,4 +620,78 @@ class MonetizationService:
             raise
         except Exception as exc:
             logger.error(f"Unexpected error getting blockchain wallets: {exc}")
+            raise
+
+    @staticmethod
+    def create_blockchain_wallet(
+        wallet_data: BlockchainWalletCreateRequest,
+    ) -> BlockchainWalletResponse:
+        """Create a blockchain wallet.
+
+        Args:
+            wallet_data: Wallet data to create
+
+        Returns:
+            BlockchainWalletResponse object
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_create_blockchain_wallet(wallet_data=wallet_data)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error creating blockchain wallet: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error creating blockchain wallet: {exc}")
+            raise
+
+    @staticmethod
+    def update_blockchain_wallet(
+        wallet_id: str,
+        wallet_data: BlockchainWalletUpdateRequest,
+    ) -> BlockchainWalletResponse:
+        """Update a blockchain wallet.
+
+        Args:
+            wallet_id: Wallet ID to update
+            wallet_data: Wallet data to update
+
+        Returns:
+            BlockchainWalletResponse object
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_update_blockchain_wallet(wallet_id=wallet_id, wallet_data=wallet_data)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error updating blockchain wallet: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error updating blockchain wallet: {exc}")
+            raise
+
+    @staticmethod
+    def delete_blockchain_wallet(
+        wallet_id: str,
+    ) -> None:
+        """Delete a blockchain wallet.
+
+        Args:
+            wallet_id: Wallet ID to delete
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_delete_blockchain_wallet(wallet_id=wallet_id)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error deleting blockchain wallet: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error deleting blockchain wallet: {exc}")
             raise

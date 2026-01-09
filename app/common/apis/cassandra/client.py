@@ -3,13 +3,17 @@
 from app.common.apis.cassandra.agent import BASE_PAYOUTS_PATH, CassandraAgent
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletCreateRequest,
     BlockchainWalletResponse,
+    BlockchainWalletUpdateRequest,
     PayoutCreateRequest,
     PayoutHistoryResponse,
     PayoutResponse,
     QuoteResponse,
+    RecipientCreateRequest,
     RecipientListResponse,
     RecipientResponse,
+    RecipientUpdateRequest,
     VaultAccountResponse,
     VaultOverviewResponse,
     VaultsListResponse,
@@ -236,6 +240,67 @@ class CassandraClient:
         )
         return self._parse_recipients_list_response(response_data)
 
+    def create_recipient(
+        self,
+        recipient_data: RecipientCreateRequest,
+    ) -> RecipientListResponse:
+        """Create a recipient.
+
+        Args:
+            recipient_data: Recipient data to create
+
+        Returns:
+            RecipientListResponse object
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = "/v1/recipients"
+        response_data = self._agent.post(
+            req_path=req_path,
+            json=recipient_data.model_dump(exclude_none=True),
+        )
+        return RecipientListResponse(**response_data)
+
+    def update_recipient(
+        self,
+        recipient_id: str,
+        recipient_data: RecipientUpdateRequest,
+    ) -> RecipientListResponse:
+        """Update a recipient.
+
+        Args:
+            recipient_id: Recipient ID to update
+            recipient_data: Recipient data to update
+
+        Returns:
+            RecipientListResponse object
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"/v1/recipients/{recipient_id}"
+        response_data = self._agent.put(
+            req_path=req_path,
+            json=recipient_data.model_dump(exclude_none=True),
+        )
+        return RecipientListResponse(**response_data)
+
+    def delete_recipient(
+        self,
+        recipient_id: str,
+    ) -> None:
+        """Delete a recipient.
+
+        Args:
+            recipient_id: Recipient ID to delete
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"/v1/recipients/{recipient_id}"
+        self._agent.delete(req_path=req_path)
+
     def get_blockchain_wallets(
         self,
         provider: str | None = None,
@@ -265,6 +330,67 @@ class CassandraClient:
             query_params=query_params if query_params else None,
         )
         return self._parse_blockchain_wallets_response(response_data)
+
+    def create_blockchain_wallet(
+        self,
+        wallet_data: BlockchainWalletCreateRequest,
+    ) -> BlockchainWalletResponse:
+        """Create a blockchain wallet.
+
+        Args:
+            wallet_data: Wallet data to create
+
+        Returns:
+            BlockchainWalletResponse object
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = "/v1/blockchain-wallets"
+        response_data = self._agent.post(
+            req_path=req_path,
+            json=wallet_data.model_dump(exclude_none=True),
+        )
+        return BlockchainWalletResponse(**response_data)
+
+    def update_blockchain_wallet(
+        self,
+        wallet_id: str,
+        wallet_data: BlockchainWalletUpdateRequest,
+    ) -> BlockchainWalletResponse:
+        """Update a blockchain wallet.
+
+        Args:
+            wallet_id: Wallet ID to update
+            wallet_data: Wallet data to update
+
+        Returns:
+            BlockchainWalletResponse object
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"/v1/blockchain-wallets/{wallet_id}"
+        response_data = self._agent.put(
+            req_path=req_path,
+            json=wallet_data.model_dump(exclude_none=True),
+        )
+        return BlockchainWalletResponse(**response_data)
+
+    def delete_blockchain_wallet(
+        self,
+        wallet_id: str,
+    ) -> None:
+        """Delete a blockchain wallet.
+
+        Args:
+            wallet_id: Wallet ID to delete
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"/v1/blockchain-wallets/{wallet_id}"
+        self._agent.delete(req_path=req_path)
 
     def _parse_recipients_response(self, response_data: dict | list) -> list[RecipientResponse]:
         """Parse recipients response from API.

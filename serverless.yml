@@ -184,8 +184,32 @@ functions:
           path: /v1/recipients
           authorizer: azkaban-authorizer
       - httpApi:
+          method: POST
+          path: /v1/recipients
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: PUT
+          path: /v1/recipients/{recipientId}
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: DELETE
+          path: /v1/recipients/{recipientId}
+          authorizer: azkaban-authorizer
+      - httpApi:
           method: GET
           path: /v1/blockchain-wallets
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: POST
+          path: /v1/blockchain-wallets
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: PUT
+          path: /v1/blockchain-wallets/{walletId}
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: DELETE
+          path: /v1/blockchain-wallets/{walletId}
           authorizer: azkaban-authorizer
       - httpApi:
           method: get

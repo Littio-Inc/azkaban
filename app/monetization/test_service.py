@@ -12,13 +12,17 @@ from tests.fixtures import (
 
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletCreateRequest,
     BlockchainWalletResponse,
+    BlockchainWalletUpdateRequest,
     CollateralSetCTO,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
+    RecipientCreateRequest,
     RecipientListResponse,
     RecipientResponse,
+    RecipientUpdateRequest,
     TokenBalance,
     VaultAccountCTO,
     VaultAccountResponse,
@@ -637,6 +641,7 @@ class TestMonetizationService(unittest.TestCase):
                 category="Manual retiros",
                 owner="LITTIO",
                 created_at="2025-12-31T15:22:32.738242+00:00",
+                updated_at="2025-12-31T15:22:32.738242+00:00",
             )
         ]
         mock_client.get_blockchain_wallets.return_value = expected_wallets
@@ -647,6 +652,323 @@ class TestMonetizationService(unittest.TestCase):
         self.assertEqual(result[0].id, "80cb0fb1-ddce-499a-a84d-927a9c30944a")
         self.assertEqual(result[0].provider, "OPEN_TRADE")
         mock_client.get_blockchain_wallets.assert_called_once_with(provider="FIREBLOCKS", exclude_provider=None)
+
+    @patch(PATCH_PATH)
+    def test_create_recipient_success(self, mock_client_class):
+        """Test successful recipient creation."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_recipient = RecipientListResponse(
+            id="recipient-id-123",
+            user_id="user-id-123",
+            type="transfer",
+            first_name="John",
+            last_name="Doe",
+            provider="cobre",
+            enabled=True,
+            created_at=TEST_TIMESTAMP,
+            updated_at=TEST_TIMESTAMP,
+        )
+        mock_client.create_recipient.return_value = expected_recipient
+
+        recipient_data = RecipientCreateRequest(
+            user_id="user-id-123",
+            type="transfer",
+            first_name="John",
+            last_name="Doe",
+            document_type="CC",
+            document_number="1234567890",
+            bank_code="001",
+            account_number="123456789",
+            account_type="checking",
+            provider="cobre",
+            enabled=True,
+        )
+        result = MonetizationService.create_recipient(recipient_data)
+
+        self.assertIsInstance(result, RecipientListResponse)
+        self.assertEqual(result.id, "recipient-id-123")
+        mock_client.create_recipient.assert_called_once_with(recipient_data=recipient_data)
+
+    @patch(PATCH_PATH)
+    def test_update_recipient_success(self, mock_client_class):
+        """Test successful recipient update."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_recipient = RecipientListResponse(
+            id="recipient-id-123",
+            user_id="user-id-123",
+            type="transfer",
+            first_name="Jane",
+            last_name="Smith",
+            provider="cobre",
+            enabled=True,
+            created_at=TEST_TIMESTAMP,
+            updated_at=TEST_TIMESTAMP,
+        )
+        mock_client.update_recipient.return_value = expected_recipient
+
+        recipient_data = RecipientUpdateRequest(first_name="Jane", last_name="Smith")
+        result = MonetizationService.update_recipient("recipient-id-123", recipient_data)
+
+        self.assertIsInstance(result, RecipientListResponse)
+        self.assertEqual(result.first_name, "Jane")
+        mock_client.update_recipient.assert_called_once_with(
+            recipient_id="recipient-id-123", recipient_data=recipient_data
+        )
+
+    @patch(PATCH_PATH)
+    def test_delete_recipient_success(self, mock_client_class):
+        """Test successful recipient deletion."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+
+        MonetizationService.delete_recipient("recipient-id-123")
+
+        mock_client.delete_recipient.assert_called_once_with(recipient_id="recipient-id-123")
+
+    @patch(PATCH_PATH)
+    def test_create_blockchain_wallet_success(self, mock_client_class):
+        """Test successful blockchain wallet creation."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_wallet = BlockchainWalletResponse(
+            id="wallet-id-123",
+            name="Test Wallet",
+            provider="cobre",
+            wallet_id="wallet_12345",
+            provider_id="provider_67890",
+            network="ethereum",
+            enabled=True,
+            category="exchange",
+            owner="team-backend",
+            created_at=TEST_TIMESTAMP,
+            updated_at=TEST_TIMESTAMP,
+        )
+        mock_client.create_blockchain_wallet.return_value = expected_wallet
+
+        wallet_data = BlockchainWalletCreateRequest(
+            name="Test Wallet",
+            provider="cobre",
+            wallet_id="wallet_12345",
+            provider_id="provider_67890",
+            network="ethereum",
+            enabled=True,
+            category="exchange",
+            owner="team-backend",
+        )
+        result = MonetizationService.create_blockchain_wallet(wallet_data)
+
+        self.assertIsInstance(result, BlockchainWalletResponse)
+        self.assertEqual(result.id, "wallet-id-123")
+        mock_client.create_blockchain_wallet.assert_called_once_with(wallet_data=wallet_data)
+
+    @patch(PATCH_PATH)
+    def test_update_blockchain_wallet_success(self, mock_client_class):
+        """Test successful blockchain wallet update."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        expected_wallet = BlockchainWalletResponse(
+            id="wallet-id-123",
+            name="Updated Wallet",
+            provider="cobre",
+            wallet_id="wallet_12345",
+            provider_id="provider_67890",
+            network="ethereum",
+            enabled=False,
+            category="trading",
+            owner="team-backend",
+            created_at=TEST_TIMESTAMP,
+            updated_at=TEST_TIMESTAMP,
+        )
+        mock_client.update_blockchain_wallet.return_value = expected_wallet
+
+        wallet_data = BlockchainWalletUpdateRequest(name="Updated Wallet", enabled=False, category="trading")
+        result = MonetizationService.update_blockchain_wallet("wallet-id-123", wallet_data)
+
+        self.assertIsInstance(result, BlockchainWalletResponse)
+        self.assertEqual(result.name, "Updated Wallet")
+        mock_client.update_blockchain_wallet.assert_called_once_with(wallet_id="wallet-id-123", wallet_data=wallet_data)
+
+    @patch(PATCH_PATH)
+    def test_delete_blockchain_wallet_success(self, mock_client_class):
+        """Test successful blockchain wallet deletion."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+
+        MonetizationService.delete_blockchain_wallet("wallet-id-123")
+
+        mock_client.delete_blockchain_wallet.assert_called_once_with(wallet_id="wallet-id-123")
+
+    @patch(PATCH_PATH)
+    def test_create_recipient_api_error(self, mock_client_class):
+        """Test recipient creation with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.create_recipient.side_effect = _create_api_error()
+
+        recipient_data = RecipientCreateRequest(
+            user_id="user-id-123",
+            type="transfer",
+            first_name="John",
+            last_name="Doe",
+            document_type="CC",
+            document_number="1234567890",
+            bank_code="001",
+            account_number="123456789",
+            account_type="checking",
+            provider="cobre",
+            enabled=True,
+        )
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.create_recipient(recipient_data)
+
+    @patch(PATCH_PATH)
+    def test_create_recipient_unexpected_error(self, mock_client_class):
+        """Test recipient creation with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.create_recipient.side_effect = _create_unexpected_error()
+
+        recipient_data = RecipientCreateRequest(
+            user_id="user-id-123",
+            type="transfer",
+            first_name="John",
+            last_name="Doe",
+            document_type="CC",
+            document_number="1234567890",
+            bank_code="001",
+            account_number="123456789",
+            account_type="checking",
+            provider="cobre",
+            enabled=True,
+        )
+        with self.assertRaises(ValueError):
+            MonetizationService.create_recipient(recipient_data)
+
+    @patch(PATCH_PATH)
+    def test_update_recipient_api_error(self, mock_client_class):
+        """Test recipient update with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.update_recipient.side_effect = _create_api_error()
+
+        recipient_data = RecipientUpdateRequest(first_name="Jane")
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.update_recipient("recipient-id-123", recipient_data)
+
+    @patch(PATCH_PATH)
+    def test_update_recipient_unexpected_error(self, mock_client_class):
+        """Test recipient update with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.update_recipient.side_effect = _create_unexpected_error()
+
+        recipient_data = RecipientUpdateRequest(first_name="Jane")
+        with self.assertRaises(ValueError):
+            MonetizationService.update_recipient("recipient-id-123", recipient_data)
+
+    @patch(PATCH_PATH)
+    def test_delete_recipient_api_error(self, mock_client_class):
+        """Test recipient deletion with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.delete_recipient.side_effect = _create_api_error()
+
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.delete_recipient("recipient-id-123")
+
+    @patch(PATCH_PATH)
+    def test_delete_recipient_unexpected_error(self, mock_client_class):
+        """Test recipient deletion with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.delete_recipient.side_effect = _create_unexpected_error()
+
+        with self.assertRaises(ValueError):
+            MonetizationService.delete_recipient("recipient-id-123")
+
+    @patch(PATCH_PATH)
+    def test_create_blockchain_wallet_api_error(self, mock_client_class):
+        """Test blockchain wallet creation with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.create_blockchain_wallet.side_effect = _create_api_error()
+
+        wallet_data = BlockchainWalletCreateRequest(
+            name="Test Wallet",
+            provider="cobre",
+            wallet_id="wallet_12345",
+            provider_id="provider_67890",
+            network="ethereum",
+            enabled=True,
+            category="exchange",
+            owner="team-backend",
+        )
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.create_blockchain_wallet(wallet_data)
+
+    @patch(PATCH_PATH)
+    def test_create_wallet_unexpected_error(self, mock_client_class):
+        """Test blockchain wallet creation with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.create_blockchain_wallet.side_effect = _create_unexpected_error()
+
+        wallet_data = BlockchainWalletCreateRequest(
+            name="Test Wallet",
+            provider="cobre",
+            wallet_id="wallet_12345",
+            provider_id="provider_67890",
+            network="ethereum",
+            enabled=True,
+            category="exchange",
+            owner="team-backend",
+        )
+        with self.assertRaises(ValueError):
+            MonetizationService.create_blockchain_wallet(wallet_data)
+
+    @patch(PATCH_PATH)
+    def test_update_blockchain_wallet_api_error(self, mock_client_class):
+        """Test blockchain wallet update with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.update_blockchain_wallet.side_effect = _create_api_error()
+
+        wallet_data = BlockchainWalletUpdateRequest(name="Updated Wallet")
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.update_blockchain_wallet("wallet-id-123", wallet_data)
+
+    @patch(PATCH_PATH)
+    def test_update_wallet_unexpected_error(self, mock_client_class):
+        """Test blockchain wallet update with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.update_blockchain_wallet.side_effect = _create_unexpected_error()
+
+        wallet_data = BlockchainWalletUpdateRequest(name="Updated Wallet")
+        with self.assertRaises(ValueError):
+            MonetizationService.update_blockchain_wallet("wallet-id-123", wallet_data)
+
+    @patch(PATCH_PATH)
+    def test_delete_blockchain_wallet_api_error(self, mock_client_class):
+        """Test blockchain wallet deletion with API error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.delete_blockchain_wallet.side_effect = _create_api_error()
+
+        with self.assertRaises(CassandraAPIClientError):
+            MonetizationService.delete_blockchain_wallet("wallet-id-123")
+
+    @patch(PATCH_PATH)
+    def test_delete_wallet_unexpected_error(self, mock_client_class):
+        """Test blockchain wallet deletion with unexpected error."""
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.delete_blockchain_wallet.side_effect = _create_unexpected_error()
+
+        with self.assertRaises(ValueError):
+            MonetizationService.delete_blockchain_wallet("wallet-id-123")
 
     @patch(PATCH_PATH)
     def test_get_blockchain_wallets_exclude_provider(self, mock_client_class):

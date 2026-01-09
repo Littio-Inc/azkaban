@@ -6,10 +6,14 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
+    BlockchainWalletCreateRequest,
+    BlockchainWalletUpdateRequest,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
+    RecipientCreateRequest,
     RecipientResponse,
+    RecipientUpdateRequest,
 )
 from app.common.apis.cassandra.errors import CassandraAPIClientError
 from app.common.enums import Provider
@@ -892,6 +896,142 @@ def get_recipients_list(
     return {"recipients": [recipient.model_dump() for recipient in recipients_data]}
 
 
+@router.post("/recipients")
+def create_recipient(
+    recipient_data: RecipientCreateRequest = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Create a recipient.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        recipient_data: Recipient data to create
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Created recipient from Cassandra
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Creating recipient - user_id: {recipient_data.user_id}, provider: {recipient_data.provider}")
+
+    try:
+        recipient_response = MonetizationService.create_recipient(recipient_data=recipient_data)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_recipients_list_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error creating recipient from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error creating recipient from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    return recipient_response.model_dump()
+
+
+@router.put("/recipients/{recipient_id}")
+def update_recipient(
+    recipient_id: str,
+    recipient_data: RecipientUpdateRequest = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Update a recipient.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        recipient_id: Recipient ID to update
+        recipient_data: Recipient data to update
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Updated recipient from Cassandra
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Updating recipient {recipient_id}")
+
+    try:
+        recipient_response = MonetizationService.update_recipient(
+            recipient_id=recipient_id,
+            recipient_data=recipient_data,
+        )
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_recipients_list_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error updating recipient from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error updating recipient from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    return recipient_response.model_dump()
+
+
+@router.delete("/recipients/{recipient_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_recipient(
+    recipient_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Delete a recipient.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        recipient_id: Recipient ID to delete
+        current_user: Current authenticated user
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Deleting recipient {recipient_id}")
+
+    try:
+        MonetizationService.delete_recipient(recipient_id=recipient_id)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_recipients_list_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error deleting recipient from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error deleting recipient from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+
+
 def _handle_blockchain_wallets_error(cassandra_error: CassandraAPIClientError) -> HTTPException:
     """Handle Cassandra API error for blockchain wallets endpoint.
 
@@ -966,3 +1106,139 @@ def get_blockchain_wallets(
             },
         ) from exc
     return {"wallets": [wallet.model_dump() for wallet in wallets_data]}
+
+
+@router.post("/blockchain-wallets")
+def create_blockchain_wallet(
+    wallet_data: BlockchainWalletCreateRequest = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Create a blockchain wallet.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        wallet_data: Wallet data to create
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Created blockchain wallet from Cassandra
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Creating blockchain wallet - name: {wallet_data.name}, provider: {wallet_data.provider}")
+
+    try:
+        wallet_response = MonetizationService.create_blockchain_wallet(wallet_data=wallet_data)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_blockchain_wallets_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error creating blockchain wallet from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error creating blockchain wallet from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    return wallet_response.model_dump()
+
+
+@router.put("/blockchain-wallets/{wallet_id}")
+def update_blockchain_wallet(
+    wallet_id: str,
+    wallet_data: BlockchainWalletUpdateRequest = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Update a blockchain wallet.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        wallet_id: Wallet ID to update
+        wallet_data: Wallet data to update
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Updated blockchain wallet from Cassandra
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Updating blockchain wallet {wallet_id}")
+
+    try:
+        wallet_response = MonetizationService.update_blockchain_wallet(
+            wallet_id=wallet_id,
+            wallet_data=wallet_data,
+        )
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_blockchain_wallets_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error updating blockchain wallet from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error updating blockchain wallet from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    return wallet_response.model_dump()
+
+
+@router.delete("/blockchain-wallets/{wallet_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_blockchain_wallet(
+    wallet_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Delete a blockchain wallet.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        wallet_id: Wallet ID to delete
+        current_user: Current authenticated user
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Deleting blockchain wallet {wallet_id}")
+
+    try:
+        MonetizationService.delete_blockchain_wallet(wallet_id=wallet_id)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_blockchain_wallets_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error deleting blockchain wallet from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error deleting blockchain wallet from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
