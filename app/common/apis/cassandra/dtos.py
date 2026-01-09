@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class QuoteResponse(BaseModel):
@@ -23,13 +23,16 @@ class QuoteResponse(BaseModel):
     network: str | None = Field(None, description="Blockchain network")
     network_fee: Decimal | None = Field(None, description="Network fee for blockchain transactions")
     spread: Decimal | None = Field(None, description="Spread in basis points")
+    # Supra-specific fields
+    supra_quote_id: str | None = Field(None, description="Supra quote ID (Supra provider only)")
+    exchange_confirmation_token: str | None = Field(None, description="Exchange confirmation token for Supra")
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_encoders = {
+    model_config = ConfigDict(
+        extra="allow",  # Allow extra fields that are not defined in the model
+        json_encoders={
             Decimal: str,
-        }
+        },
+    )
 
 
 class RecipientResponse(BaseModel):
@@ -181,7 +184,7 @@ class BalanceResponse(BaseModel):
 class PayoutCreateRequest(BaseModel):
     """Request model for creating a payout."""
 
-    recipient_id: str = Field(..., description="UUID of the recipient for the payout")
+    recipient_id: str | None = Field(None, description="UUID of the recipient for the payout")
     wallet_id: str = Field(..., description="UUID of the wallet for the payout")
     reference: str | None = Field(None, description="Custom reference for the payout")
     base_currency: str = Field(..., description="Base currency code according to ISO-4217")
@@ -192,6 +195,7 @@ class PayoutCreateRequest(BaseModel):
     token: str = Field(..., description="Token type to use for the payout (USDC or USDT)")
     provider: str = Field(..., description="Provider name (kira, cobre, supra)")
     user_id: str | None = Field(None, description="User ID from database (optional, will be set by Azkaban)")
+    exchange_only: bool = Field(False, description="If true, only perform exchange without recipient (for B2C)")
 
     class Config:
         """Pydantic PayoutCreateRequest configuration."""
@@ -206,7 +210,7 @@ class PayoutResponse(BaseModel):
 
     payout_id: str = Field(..., description="Payout's unique identifier")
     user_id: str = Field(..., description="ID of the user")
-    recipient_id: str = Field(..., description="ID of the recipient")
+    recipient_id: str | None = Field(None, description="ID of the recipient (optional for exchange-only payouts)")
     quote_id: str = Field(..., description="ID of the quote used")
     reference: str | None = Field(None, description="External reference for the payout")
     from_amount: str = Field(..., description="Amount in from currency")
@@ -237,8 +241,8 @@ class PayoutHistoryItem(BaseModel):
     initial_currency: str = Field(..., description="Initial currency code")
     final_currency: str = Field(..., description="Final currency code")
     initial_amount: str = Field(..., description="Initial amount")
-    final_amount: str = Field(..., description="Final amount")
-    rate: str = Field(..., description="Exchange rate")
+    final_amount: str | None = Field(None, description="Final amount (can be None for incomplete payouts)")
+    rate: str | None = Field(None, description="Exchange rate (can be None for incomplete payouts)")
     status: str = Field(..., description="Payout status")
     user_id: str | None = Field(None, description="ID of the user")
     provider: int = Field(..., description="Provider identifier")
@@ -247,12 +251,11 @@ class PayoutHistoryItem(BaseModel):
     provider_webhook: dict | None = Field(None, description="Provider webhook data")
     additional_data: dict | None = Field(None, description="Additional data")
 
-    class Config:
-        """Pydantic PayoutHistoryItem configuration."""
-
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             Decimal: str,
-        }
+        },
+    )
 
 
 class PayoutHistoryResponse(BaseModel):
@@ -263,12 +266,11 @@ class PayoutHistoryResponse(BaseModel):
     data: list[PayoutHistoryItem] = Field(..., description="List of payout history items")
     count: int | None = Field(None, description="Total count of payouts")
 
-    class Config:
-        """Pydantic PayoutHistoryResponse configuration."""
-
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             Decimal: str,
-        }
+        },
+    )
 
 
 # OpenTrade DTOs

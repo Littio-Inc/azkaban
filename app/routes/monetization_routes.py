@@ -253,6 +253,96 @@ def _handle_recipients_error(cassandra_error: CassandraAPIClientError) -> HTTPEx
     )
 
 
+def _extract_cassandra_error_message(cass_err: CassandraAPIClientError) -> str:
+    """Extract error message from Cassandra API error.
+
+    Args:
+        cass_err: Cassandra API client error
+
+    Returns:
+        str: Extracted error message
+    """
+    error_detail_dict = cass_err.error_detail or {}
+    error_obj = error_detail_dict.get(ERROR_KEY)
+
+    # Try different error message formats from Cassandra
+    if error_detail_dict.get(DETAIL_KEY):
+        return error_detail_dict[DETAIL_KEY]
+
+    if isinstance(error_obj, dict) and error_obj.get(MESSAGE_KEY):
+        return error_obj[MESSAGE_KEY]
+
+    if error_detail_dict.get(MESSAGE_KEY):
+        return error_detail_dict[MESSAGE_KEY]
+
+    return str(cass_err)
+
+
+def _validate_payout_payload(payout_data: PayoutCreateRequest) -> None:
+    """Validate payout payload.
+
+    Args:
+        payout_data: Payout request data
+
+    Raises:
+        HTTPException: If validation fails
+    """
+    if not payout_data.provider:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provider is required",
+        )
+
+    _validate_provider(payout_data.provider)
+
+    if not payout_data.exchange_only and not payout_data.recipient_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="recipient_id is required unless exchange_only is True",
+        )
+
+
+def _configure_payout_user_id(
+    payout_data: PayoutCreateRequest,
+    db_user_id: str,
+) -> None:
+    """Configure user_id in payout data.
+
+    Args:
+        payout_data: Payout request data (modified in place)
+        db_user_id: User ID from database
+    """
+    if not payout_data.user_id:
+        payout_data.user_id = db_user_id
+    payout_data.provider = payout_data.provider.lower()
+
+
+def _handle_cassandra_payout_error(cass_err: CassandraAPIClientError) -> HTTPException:
+    """Handle Cassandra API error for payout creation.
+
+    Args:
+        cass_err: Cassandra API client error
+
+    Returns:
+        HTTPException: Appropriate HTTP exception
+    """
+    error_message = _extract_cassandra_error_message(cass_err)
+    error_status_code = cass_err.status_code or status.HTTP_502_BAD_GATEWAY
+
+    if error_message != str(cass_err):
+        logger.error(f"Cassandra API error: {error_message}")
+        return HTTPException(
+            status_code=error_status_code,
+            detail=error_message,
+        )
+
+    logger.exception("Error creating payout in monetization service: %s", cass_err)
+    return HTTPException(
+        status_code=error_status_code,
+        detail="Error creating payout in monetization service",
+    )
+
+
 def _get_database_user_id(current_user: dict) -> str:
     """Get user ID from database using Firebase UID.
 
@@ -481,26 +571,12 @@ def create_payout(
         HTTPException: If API call fails or user is not authenticated
     """
     db_user_id = _get_database_user_id(current_user)
-
-    if not payout_data.provider:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provider is required",
-        )
-
-    _validate_provider(payout_data.provider)
-
-    # Set user_id in payout_data
-    # If user_id is already provided (e.g., from Dobby for Kira), use it
-    # Otherwise, use the user_id from database (for Cobre, Supra, etc.)
-    if not payout_data.user_id:
-        payout_data.user_id = db_user_id
-    # If user_id is provided, keep it (for Kira compatibility)
-    payout_data.provider = payout_data.provider.lower()
+    _validate_payout_payload(payout_data)
+    _configure_payout_user_id(payout_data, db_user_id)
 
     logger.info(
         f"Creating payout - account: {account}, user_id: {payout_data.user_id}, "
-        f"{PROVIDER_KEY}: {payout_data.provider}",
+        f"{PROVIDER_KEY}: {payout_data.provider}, exchange_only: {payout_data.exchange_only}",
     )
 
     try:
@@ -511,6 +587,8 @@ def create_payout(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=CONFIG_ERROR_DETAIL,
         ) from config_error
+    except CassandraAPIClientError as cass_err:
+        raise _handle_cassandra_payout_error(cass_err) from cass_err
     except Exception as exc:
         logger.exception("Error creating payout in monetization service: %s", exc)
         raise HTTPException(

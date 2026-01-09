@@ -16,7 +16,7 @@ class AssetResponse(BaseModel):
     pending: str = Field(..., description="Pending amount")
     frozen: str = Field(..., description="Frozen amount")
     staked: str = Field(..., description="Staked amount")
-    blockHeight: str = Field(..., description="Block height", alias="blockHeight")
+    blockHeight: Optional[str] = Field(None, description="Block height", alias="blockHeight")
     blockHash: Optional[str] = Field(None, description="Block hash", alias="blockHash")
 
     class Config:
