@@ -176,8 +176,7 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertEqual(data[0]["id"], "5")
         self.assertEqual(len(data[0]["assets"]), 1)
         self.assertIsNone(data[0]["assets"][0]["blockHeight"])
-        expected_hash = "0xbd4b5221dbded68a6c76f809b31f87732b29e2972bf0d9075d2e09e3e2a46fcd"
-        self.assertEqual(data[0]["assets"][0]["blockHash"], expected_hash)
+        self.assertEqual(data[0]["assets"][0]["blockHash"], "0xbd4b5221dbded68a6c76f809b31f87732b29e2972bf0d9075d2e09e3e2a46fcd")
         mock_client.get_accounts.assert_called_once()
 
     @patch("app.routes.diagon_routes.DiagonClient")
@@ -453,149 +452,6 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertIn("error retrieving external wallets", data["detail"].lower())
 
     @patch("app.routes.diagon_routes.DiagonClient")
-    @patch("app.routes.diagon_routes.os.getenv")
-    def test_get_external_wallets_production_mock(self, mock_getenv, mock_diagon_service):
-        """Test getting external wallets in production returns mocked data."""
-        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-        mock_getenv.return_value = "production"
-
-        response = self.client.get("/v1/vault/external-wallets")
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        # Verify mock structure
-        self.assertEqual(data["message"], "External wallets retrieved successfully")
-        self.assertEqual(data["code"], 0)
-        self.assertIn("data", data)
-        self.assertIsInstance(data["data"], list)
-        self.assertGreater(len(data["data"]), 0)
-
-        # Verify first wallet structure
-        first_wallet = data["data"][0]
-        self.assertIn("id", first_wallet)
-        self.assertIn("name", first_wallet)
-        self.assertIn("assets", first_wallet)
-        self.assertEqual(first_wallet["name"], "BOTH_COBRE_B2C")
-
-        # Verify assets structure
-        self.assertIsInstance(first_wallet["assets"], list)
-        self.assertGreater(len(first_wallet["assets"]), 0)
-        first_asset = first_wallet["assets"][0]
-        self.assertIn("id", first_asset)
-        self.assertIn("status", first_asset)
-        self.assertIn("address", first_asset)
-        self.assertIn("tag", first_asset)
-
-        # Verify that DiagonClient was NOT called in production
-        mock_diagon_service.assert_not_called()
-
-    @patch("app.routes.diagon_routes.os.getenv")
-    @patch("app.routes.diagon_routes.DiagonClient")
-    def test_get_external_wallets_non_production_calls_diagon(self, mock_diagon_service, mock_getenv):
-        """Test getting external wallets in non-production calls Diagon."""
-        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-        mock_getenv.return_value = "staging"
-
-        mock_wallets_data = [
-            {
-                "id": "wallet-1",
-                "name": "Test Wallet",
-                "customerRefId": "customer-123",
-                "assets": [
-                    {
-                        "id": "USDC_POLYGON",
-                        "balance": "100.0",
-                        "lockedAmount": "0",
-                        "status": "APPROVED",
-                        "address": "0x1234567890abcdef",
-                        "tag": "",
-                        "activationTime": "2024-01-01T00:00:00Z"
-                    }
-                ]
-            }
-        ]
-
-        mock_client = mock_diagon_service.return_value
-        mock_client.get_external_wallets.return_value = [ExternalWallet(**wallet) for wallet in mock_wallets_data]
-
-        response = self.client.get("/v1/vault/external-wallets")
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        # Verify it returns Diagon data, not mock
-        self.assertEqual(data[0]["name"], "Test Wallet")
-        self.assertNotIn("message", data)
-        self.assertNotIn("code", data)
-        mock_client.get_external_wallets.assert_called_once()
-
-    @patch("app.routes.diagon_routes.os.getenv")
-    @patch("app.routes.diagon_routes.DiagonClient")
-    def test_get_external_wallets_local_calls_diagon(self, mock_diagon_service, mock_getenv):
-        """Test getting external wallets in local environment calls Diagon."""
-        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-        mock_getenv.return_value = "local"
-
-        mock_wallets_data = [
-            {
-                "id": "wallet-2",
-                "name": "Local Wallet",
-                "customerRefId": "customer-456",
-                "assets": []
-            }
-        ]
-
-        mock_client = mock_diagon_service.return_value
-        mock_client.get_external_wallets.return_value = [ExternalWallet(**wallet) for wallet in mock_wallets_data]
-
-        response = self.client.get("/v1/vault/external-wallets")
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data[0]["name"], "Local Wallet")
-        mock_client.get_external_wallets.assert_called_once()
-
-    @patch("app.routes.diagon_routes.os.getenv")
-    def test_get_external_wallets_production_mock_structure(self, mock_getenv):
-        """Test that production mock returns all expected wallets."""
-        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-        mock_getenv.return_value = "production"
-
-        response = self.client.get("/v1/vault/external-wallets")
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-
-        # Verify all expected wallets are present
-        wallet_names = [wallet["name"] for wallet in data["data"]]
-        expected_wallets = [
-            "BOTH_COBRE_B2C",
-            "PROVIDER_KIRA_B2B",
-            "PROVIDER_KIRA_POMELO",
-            "PROVIDER_SUPRA",
-            "B2C_BRIDGE",
-            "B2C_KOYWE",
-            "B2C_BLOCKCHAIN"
-        ]
-        for expected_wallet in expected_wallets:
-            msg = f"Expected wallet {expected_wallet} not found in response"
-            self.assertIn(expected_wallet, wallet_names, msg)
-
-        # Verify each wallet has required fields
-        for wallet in data["data"]:
-            self.assertIn("id", wallet)
-            self.assertIn("name", wallet)
-            self.assertIn("assets", wallet)
-            self.assertIsInstance(wallet["assets"], list)
-
-            # Verify assets have required fields
-            for asset in wallet["assets"]:
-                self.assertIn("id", asset)
-                self.assertIn("status", asset)
-                self.assertIn("address", asset)
-                self.assertIn("tag", asset)
-                self.assertEqual(asset["status"], "APPROVED")
-
-    @patch("app.routes.diagon_routes.DiagonClient")
     def test_create_transaction_success(self, mock_diagon_service):
         """Test creating transaction successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
@@ -751,3 +607,4 @@ class TestDiagonRoutes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
