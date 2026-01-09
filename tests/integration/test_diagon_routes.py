@@ -453,13 +453,15 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertIn("error retrieving external wallets", data["detail"].lower())
 
     @patch("app.routes.diagon_routes.DiagonClient")
-    @patch("app.routes.diagon_routes.os.getenv")
-    def test_get_external_wallets_production_mock(self, mock_getenv, mock_diagon_service):
+    def test_get_external_wallets_production_mock(self, mock_diagon_service):
         """Test getting external wallets in production returns mocked data."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-        mock_getenv.return_value = "production"
 
-        response = self.client.get("/v1/vault/external-wallets")
+        # Simulate production request by setting host header
+        response = self.client.get(
+            "/v1/vault/external-wallets",
+            headers={"host": "5ybfptts02.execute-api.us-east-1.amazonaws.com"}
+        )
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -489,12 +491,10 @@ class TestDiagonRoutes(unittest.TestCase):
         # Verify that DiagonClient was NOT called in production
         mock_diagon_service.assert_not_called()
 
-    @patch("app.routes.diagon_routes.os.getenv")
     @patch("app.routes.diagon_routes.DiagonClient")
-    def test_get_external_wallets_non_production_calls_diagon(self, mock_diagon_service, mock_getenv):
+    def test_get_external_wallets_non_production_calls_diagon(self, mock_diagon_service):
         """Test getting external wallets in non-production calls Diagon."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-        mock_getenv.return_value = "staging"
 
         mock_wallets_data = [
             {
@@ -528,12 +528,10 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertNotIn("code", data)
         mock_client.get_external_wallets.assert_called_once()
 
-    @patch("app.routes.diagon_routes.os.getenv")
     @patch("app.routes.diagon_routes.DiagonClient")
-    def test_get_external_wallets_local_calls_diagon(self, mock_diagon_service, mock_getenv):
+    def test_get_external_wallets_local_calls_diagon(self, mock_diagon_service):
         """Test getting external wallets in local environment calls Diagon."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-        mock_getenv.return_value = "local"
 
         mock_wallets_data = [
             {
@@ -554,13 +552,15 @@ class TestDiagonRoutes(unittest.TestCase):
         self.assertEqual(data[0]["name"], "Local Wallet")
         mock_client.get_external_wallets.assert_called_once()
 
-    @patch("app.routes.diagon_routes.os.getenv")
-    def test_get_external_wallets_production_mock_structure(self, mock_getenv):
+    def test_get_external_wallets_production_mock_structure(self):
         """Test that production mock returns all expected wallets."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
-        mock_getenv.return_value = "production"
 
-        response = self.client.get("/v1/vault/external-wallets")
+        # Simulate production request by setting host header
+        response = self.client.get(
+            "/v1/vault/external-wallets",
+            headers={"host": "5ybfptts02.execute-api.us-east-1.amazonaws.com"}
+        )
 
         self.assertEqual(response.status_code, 200)
         data = response.json()

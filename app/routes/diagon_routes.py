@@ -1,14 +1,12 @@
 """Diagon routes for vault accounts."""
 
 import logging
-import os
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from app.common.apis.diagon.client import DiagonClient
 from app.common.apis.diagon.dtos import EstimateFeeRequest, VaultToVaultRequest
 from app.common.apis.diagon.errors import DiagonAPIClientError
-from app.common.enums import Environment
 from app.middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -17,6 +15,7 @@ router = APIRouter()
 
 # Constants
 DIAGON_API_ERROR_MSG = "Diagon API error: %s"
+PRODUCTION_API_HOST = "5ybfptts02.execute-api.us-east-1.amazonaws.com"
 
 
 def _get_accounts_data() -> list[dict]:
@@ -336,14 +335,17 @@ def _get_external_wallets_data() -> list[dict] | dict:
 
 @router.get("/vault/external-wallets")
 def get_external_wallets(
+    request: Request,  # noqa: WPS404
     current_user: dict = Depends(get_current_user)  # noqa: WPS404
 ):
     """Get external wallets from Diagon.
 
     This endpoint requires authentication and proxies requests to Diagon API.
-    If the environment is production, returns mocked data instead of calling Diagon.
+    If the request comes from production API Gateway (5ybfptts02.execute-api.us-east-1.amazonaws.com),
+    returns mocked data instead of calling Diagon.
 
     Args:
+        request: FastAPI Request object to check the host
         current_user: Current authenticated user
 
     Returns:
@@ -353,17 +355,34 @@ def get_external_wallets(
     Raises:
         HTTPException: If API call fails or user is not authenticated
     """
-    # Check if environment is production
-    environment = os.getenv("ENVIRONMENT", Environment.LOCAL.value)
+    # Check if request is from production API Gateway
+    # Check multiple headers that API Gateway might use
+    host = request.headers.get("host", "")
+    x_forwarded_host = request.headers.get("x-forwarded-host", "")
+    url = str(request.url)
 
-    if environment == Environment.PRODUCTION.value:
+    # Check if host, x-forwarded-host, or URL contains production API Gateway host
+    is_production = (
+        PRODUCTION_API_HOST in host or
+        PRODUCTION_API_HOST in x_forwarded_host or
+        PRODUCTION_API_HOST in url
+    )
+
+    if is_production:
         logger.info(
-            "Production environment detected (ENVIRONMENT=%s). Returning mocked external wallets data",
-            environment
+            "Production request detected (host: %s, x-forwarded-host: %s, url: %s). "
+            "Returning mocked external wallets data",
+            host,
+            x_forwarded_host,
+            url
         )
         return _get_production_mock_external_wallets()
 
-    logger.info("Getting external wallets from Diagon (environment: %s)", environment)
+    logger.info(
+        "Getting external wallets from Diagon (non-production request - host: %s, x-forwarded-host: %s)",
+        host,
+        x_forwarded_host
+    )
 
     try:
         wallets_data = _get_external_wallets_data()
