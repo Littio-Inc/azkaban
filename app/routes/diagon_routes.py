@@ -354,7 +354,7 @@ def get_external_wallets(
         HTTPException: If API call fails or user is not authenticated
     """
     # Check if environment is production
-    environment = os.getenv("ENVIRONMENT", Environment.PRODUCTION.value)
+    environment = os.getenv("ENVIRONMENT", Environment.LOCAL.value)
     logger.info("Environment: %s", environment)
 
     if environment == Environment.PRODUCTION.value:
