@@ -131,6 +131,9 @@ class TestExternalWalletsRoutes(unittest.TestCase):
         mock_wallet_response = ExternalWalletResponse(
             id=wallet_id,
             external_wallet_id="123e4567-e89b-12d3-a456-426614174001",
+            asset_id="USDC_AMOY_POLYGON_TEST_7WWV",
+            asset_address="0xDC8B0E600d38496F4ed07995ECa37a834FbdC73A",
+            asset_tag="",
             name="Vault Wallet Principal",
             category="OTC",
             supplier_prefunding=True,
@@ -144,6 +147,9 @@ class TestExternalWalletsRoutes(unittest.TestCase):
 
         wallet_data = {
             "external_wallet_id": "123e4567-e89b-12d3-a456-426614174001",
+            "asset_id": "USDC_AMOY_POLYGON_TEST_7WWV",
+            "asset_address": "0xDC8B0E600d38496F4ed07995ECa37a834FbdC73A",
+            "asset_tag": "",
             "name": "Vault Wallet Principal",
             "category": "OTC",
             "supplier_prefunding": True,
@@ -157,6 +163,10 @@ class TestExternalWalletsRoutes(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["id"], wallet_id)
         self.assertEqual(data["category"], "OTC")
+        # Verify new fields are included in response
+        self.assertEqual(data["asset_id"], "USDC_AMOY_POLYGON_TEST_7WWV")
+        self.assertEqual(data["asset_address"], "0xDC8B0E600d38496F4ed07995ECa37a834FbdC73A")
+        self.assertEqual(data["asset_tag"], "")
         mock_service_class.create_external_wallet.assert_called_once()
 
     @patch("app.routes.monetization_routes.MonetizationService")
@@ -195,6 +205,9 @@ class TestExternalWalletsRoutes(unittest.TestCase):
         mock_wallet_response = ExternalWalletResponse(
             id=wallet_id,
             external_wallet_id="123e4567-e89b-12d3-a456-426614174000",
+            asset_id="USDC_AMOY_POLYGON_TEST_7WWV",
+            asset_address="0xDC8B0E600d38496F4ed07995ECa37a834FbdC73A",
+            asset_tag="",
             name="Vault Wallet Principal 2",
             category="VAULT",
             supplier_prefunding=True,
@@ -207,6 +220,9 @@ class TestExternalWalletsRoutes(unittest.TestCase):
         mock_service_class.update_external_wallet.return_value = mock_wallet_response
 
         wallet_data = {
+            "asset_id": "USDC_AMOY_POLYGON_TEST_7WWV",
+            "asset_address": "0xDC8B0E600d38496F4ed07995ECa37a834FbdC73A",
+            "asset_tag": "",
             "name": "Vault Wallet Principal 2",
             "category": "VAULT",
             "supplier_prefunding": True,
@@ -221,6 +237,10 @@ class TestExternalWalletsRoutes(unittest.TestCase):
         self.assertEqual(data["id"], wallet_id)
         self.assertEqual(data["name"], "Vault Wallet Principal 2")
         self.assertEqual(data["category"], "VAULT")
+        # Verify new fields are included in response
+        self.assertEqual(data["asset_id"], "USDC_AMOY_POLYGON_TEST_7WWV")
+        self.assertEqual(data["asset_address"], "0xDC8B0E600d38496F4ed07995ECa37a834FbdC73A")
+        self.assertEqual(data["asset_tag"], "")
         mock_service_class.update_external_wallet.assert_called_once()
 
     @patch("app.routes.monetization_routes.MonetizationService")
