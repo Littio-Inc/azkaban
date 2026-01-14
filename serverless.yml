@@ -212,6 +212,22 @@ functions:
           path: /v1/blockchain-wallets/{walletId}
           authorizer: azkaban-authorizer
       - httpApi:
+          method: GET
+          path: /v1/external-wallets
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: POST
+          path: /v1/external-wallets
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: PUT
+          path: /v1/external-wallets/{walletId}
+          authorizer: azkaban-authorizer
+      - httpApi:
+          method: DELETE
+          path: /v1/external-wallets/{walletId}
+          authorizer: azkaban-authorizer
+      - httpApi:
           method: get
           path: /health
       - httpApi:

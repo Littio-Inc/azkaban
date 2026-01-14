@@ -160,6 +160,50 @@ class BlockchainWalletResponse(BaseModel):
         }
 
 
+class ExternalWalletCreateRequest(BaseModel):
+    """Request model for creating an external wallet."""
+
+    external_wallet_id: str = Field(..., description="External wallet ID")
+    asset_id: str | None = Field(None, description="Asset ID associated with the wallet")
+    asset_address: str | None = Field(None, description="Asset address associated with the wallet")
+    asset_tag: str | None = Field(None, description="Asset tag associated with the wallet")
+    name: str = Field(..., description="Wallet name")
+    category: str = Field(..., description="Wallet category (e.g., 'VAULT', 'OTC')")
+    supplier_prefunding: bool = Field(..., description="Whether supplier prefunding is enabled")
+    b2c_funding: bool = Field(..., description="Whether B2C funding is enabled")
+    enabled: bool = Field(..., description="Whether the wallet is enabled")
+
+
+class ExternalWalletUpdateRequest(BaseModel):
+    """Request model for updating an external wallet."""
+
+    asset_id: str | None = Field(None, description="Asset ID associated with the wallet")
+    asset_address: str | None = Field(None, description="Asset address associated with the wallet")
+    asset_tag: str | None = Field(None, description="Asset tag associated with the wallet")
+    name: str | None = Field(None, description="Wallet name")
+    category: str | None = Field(None, description="Wallet category (e.g., 'VAULT', 'OTC')")
+    supplier_prefunding: bool | None = Field(None, description="Whether supplier prefunding is enabled")
+    b2c_funding: bool | None = Field(None, description="Whether B2C funding is enabled")
+    enabled: bool | None = Field(None, description="Whether the wallet is enabled")
+
+
+class ExternalWalletResponse(BaseModel):
+    """Response model for external wallet operations."""
+
+    id: str = Field(..., description="Wallet's unique identifier")
+    external_wallet_id: str = Field(..., description="External wallet ID")
+    asset_id: str | None = Field(None, description="Asset ID associated with the wallet")
+    asset_address: str | None = Field(None, description="Asset address associated with the wallet")
+    asset_tag: str | None = Field(None, description="Asset tag associated with the wallet")
+    name: str = Field(..., description="Wallet name")
+    category: str = Field(..., description="Wallet category (e.g., 'VAULT', 'OTC')")
+    supplier_prefunding: bool = Field(..., description="Whether supplier prefunding is enabled")
+    b2c_funding: bool = Field(..., description="Whether B2C funding is enabled")
+    enabled: bool = Field(..., description="Whether the wallet is enabled")
+    created_at: str = Field(..., description="Wallet creation timestamp")
+    updated_at: str = Field(..., description="Wallet last update timestamp")
+
+
 class TokenBalance(BaseModel):
     """Model for individual token balance."""
 
