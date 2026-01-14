@@ -186,6 +186,9 @@ class ExternalWalletResponse(BaseModel):
 
     id: str = Field(..., description="Wallet's unique identifier")
     external_wallet_id: str = Field(..., description="External wallet ID")
+    asset_id: str | None = Field(None, description="Asset ID associated with the wallet")
+    asset_address: str | None = Field(None, description="Asset address associated with the wallet")
+    asset_tag: str | None = Field(None, description="Asset tag associated with the wallet")
     name: str = Field(..., description="Wallet name")
     category: str = Field(..., description="Wallet category (e.g., 'VAULT', 'OTC')")
     supplier_prefunding: bool = Field(..., description="Whether supplier prefunding is enabled")
