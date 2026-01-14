@@ -369,7 +369,6 @@ class TestDiagonRoutes(unittest.TestCase):
                 "id": "wallet-1",
                 "name": "Test Wallet",
                 "customerRefId": "customer-123",
-                "provider": "FIREBLOCKS",
                 "assets": [
                     {
                         "id": "USDC_POLYGON",

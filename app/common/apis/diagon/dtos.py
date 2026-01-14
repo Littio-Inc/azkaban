@@ -110,7 +110,6 @@ class ExternalWallet(BaseModel):
     id: str = Field(..., description="Wallet ID")
     name: str = Field(..., description="Wallet name")
     customerRefId: str = Field(..., description="Customer reference ID", alias="customerRefId")
-    provider: str = Field(..., description="Provider name (e.g., 'FIREBLOCKS')")
     assets: list[ExternalWalletAsset] = Field(..., description="List of assets")
 
     class Config:
