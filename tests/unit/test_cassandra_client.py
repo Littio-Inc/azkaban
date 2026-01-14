@@ -987,6 +987,39 @@ class TestCassandraClient(unittest.TestCase):
 
     @patch(PATCH_AGENT)
     @patch(PATCH_SECRETS)
+    def test_update_external_wallet_partial(self, mock_get_secret, mock_agent_class):
+        """Test partial external wallet update with exclude_none=True behavior."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.put.return_value = {
+            "id": "2f4d0fad-185a-49b5-88d9-bf8c1c45c626",
+            "external_wallet_id": "123e4567-e89b-12d3-a456-426614174000",
+            "name": "Updated Name Only",
+            "category": "VAULT",
+            "supplier_prefunding": True,
+            "b2c_funding": True,
+            "enabled": True,
+            "created_at": "2026-01-14T16:53:32.251713+00:00",
+            "updated_at": "2026-01-14T16:54:21.397067+00:00",
+        }
+
+        client = CassandraClient()
+        wallet_data = ExternalWalletUpdateRequest(
+            name="Updated Name Only",
+        )
+        result = client.update_external_wallet("2f4d0fad-185a-49b5-88d9-bf8c1c45c626", wallet_data)
+
+        self.assertIsInstance(result, ExternalWalletResponse)
+        self.assertEqual(result.name, "Updated Name Only")
+        mock_agent.put.assert_called_once()
+        # Verify that only the name field is sent in the JSON body (exclude_none=True behavior)
+        call_args = mock_agent.put.call_args
+        self.assertIsNotNone(call_args)
+        self.assertEqual(call_args.kwargs["json"], {"name": "Updated Name Only"})
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
     def test_delete_external_wallet_success(self, mock_get_secret, mock_agent_class):
         """Test successful external wallet deletion."""
         mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY

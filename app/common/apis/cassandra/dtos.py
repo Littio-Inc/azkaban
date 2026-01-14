@@ -194,13 +194,6 @@ class ExternalWalletResponse(BaseModel):
     created_at: str = Field(..., description="Wallet creation timestamp")
     updated_at: str = Field(..., description="Wallet last update timestamp")
 
-    class Config:
-        """Pydantic ExternalWalletResponse configuration."""
-
-        json_encoders = {
-            Decimal: str,
-        }
-
 
 class TokenBalance(BaseModel):
     """Model for individual token balance."""

@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from faker import Faker
 
 from app.common.apis.cassandra.dtos import (
     BalanceResponse,
@@ -26,8 +25,6 @@ from app.common.apis.cassandra.dtos import (
 )
 from app.middleware.auth import get_current_user
 from app.routes.monetization_routes import router
-
-fake = Faker()
 
 
 class TestMonetizationRoutes(unittest.TestCase):
@@ -627,6 +624,752 @@ class TestMonetizationRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data.get("vaultAddress") or data.get("vault_address"), "0x123")
+
+    @patch("app.routes.monetization_routes._create_payout_data")
+    @patch("app.routes.monetization_routes.UserService")
+    def test_create_payout_success(self, mock_user_service, mock_create_payout):
+        """Test creating payout successfully."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_user_service.get_user_by_firebase_uid.return_value = {"id": "user-123"}
+        mock_payout = PayoutResponse(
+            payout_id="payout-123",
+            user_id="user-123",
+            recipient_id="rec-123",
+            quote_id="quote-123",
+            from_amount="100.0",
+            from_currency="USD",
+            to_amount="1000.0",
+            to_currency="COP",
+            status="pending",
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        )
+        mock_create_payout.return_value = mock_payout
+
+        from app.common.apis.cassandra.dtos import QuoteResponse
+        from decimal import Decimal
+        mock_quote = QuoteResponse(
+            quote_id="quote-123",
+            base_currency="USD",
+            quote_currency="COP",
+            base_amount=Decimal("100.0"),
+            quote_amount=Decimal("1000.0"),
+            rate=Decimal("10.0"),
+            balam_rate=Decimal("1.5"),
+            fixed_fee=Decimal("0"),
+            pct_fee=Decimal("0"),
+            status="active",
+            expiration_ts="2024-01-01T00:00:00",
+            expiration_ts_utc="2024-01-01T00:00:00Z",
+        )
+
+        payout_data = {
+            "wallet_id": "wallet-123",
+            "base_currency": "USD",
+            "quote_currency": "COP",
+            "amount": "100.0",
+            "quote_id": "quote-123",
+            "quote": mock_quote.model_dump(mode="json"),
+            "token": "USDC",
+            "provider": "kira",
+            "recipient_id": "rec-123",
+        }
+
+        response = self.client.post("/v1/payouts/account/transfer/payout", json=payout_data)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["payout_id"], "payout-123")
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    @patch("app.routes.monetization_routes.UserService")
+    def test_create_payout_missing_provider(self, mock_user_service, mock_service_class):
+        """Test creating payout without provider."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_user_service.get_user_by_firebase_uid.return_value = {"id": "user-123"}
+
+        payout_data = {
+            "wallet_id": "wallet-123",
+            "base_currency": "USD",
+            "quote_currency": "COP",
+            "amount": 100.0,
+            "quote_id": "quote-123",
+            "token": "USDC",
+            "recipient_id": "rec-123",
+        }
+
+        response = self.client.post("/v1/payouts/account/transfer/payout", json=payout_data)
+
+        self.assertEqual(response.status_code, 422)  # Validation error
+
+    @patch("app.routes.monetization_routes.UserService")
+    def test_create_payout_missing_recipient_id(self, mock_user_service):
+        """Test creating payout without recipient_id when exchange_only is False."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_user_service.get_user_by_firebase_uid.return_value = {"id": "user-123"}
+        from app.common.apis.cassandra.dtos import QuoteResponse
+        from decimal import Decimal
+        mock_quote = QuoteResponse(
+            quote_id="quote-123",
+            base_currency="USD",
+            quote_currency="COP",
+            base_amount=Decimal("100.0"),
+            quote_amount=Decimal("1000.0"),
+            rate=Decimal("10.0"),
+            balam_rate=Decimal("1.5"),
+            fixed_fee=Decimal("0"),
+            pct_fee=Decimal("0"),
+            status="active",
+            expiration_ts="2024-01-01T00:00:00",
+            expiration_ts_utc="2024-01-01T00:00:00Z",
+        )
+
+        payout_data = {
+            "wallet_id": "wallet-123",
+            "base_currency": "USD",
+            "quote_currency": "COP",
+            "amount": "100.0",
+            "quote_id": "quote-123",
+            "quote": mock_quote.model_dump(mode="json"),
+            "token": "USDC",
+            "provider": "kira",
+            "exchange_only": False,
+        }
+
+        response = self.client.post("/v1/payouts/account/transfer/payout", json=payout_data)
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertIn("recipient_id is required", data["detail"])
+
+    @patch("app.routes.monetization_routes._create_payout_data")
+    @patch("app.routes.monetization_routes.UserService")
+    def test_create_payout_generic_error(self, mock_user_service, mock_create_payout):
+        """Test creating payout when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_user_service.get_user_by_firebase_uid.return_value = {"id": "user-123"}
+        mock_create_payout.side_effect = Exception("Network error")
+
+        from app.common.apis.cassandra.dtos import QuoteResponse
+        from decimal import Decimal
+        mock_quote = QuoteResponse(
+            quote_id="quote-123",
+            base_currency="USD",
+            quote_currency="COP",
+            base_amount=Decimal("100.0"),
+            quote_amount=Decimal("1000.0"),
+            rate=Decimal("10.0"),
+            balam_rate=Decimal("1.5"),
+            fixed_fee=Decimal("0"),
+            pct_fee=Decimal("0"),
+            status="active",
+            expiration_ts="2024-01-01T00:00:00",
+            expiration_ts_utc="2024-01-01T00:00:00Z",
+        )
+
+        payout_data = {
+            "wallet_id": "wallet-123",
+            "base_currency": "USD",
+            "quote_currency": "COP",
+            "amount": "100.0",
+            "quote_id": "quote-123",
+            "quote": mock_quote.model_dump(mode="json"),
+            "token": "USDC",
+            "provider": "kira",
+            "recipient_id": "rec-123",
+        }
+
+        response = self.client.post("/v1/payouts/account/transfer/payout", json=payout_data)
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("Error creating payout", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_payout_history_generic_error(self, mock_service_class):
+        """Test getting payout history when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.get_payout_history.side_effect = Exception("Network error")
+
+        response = self.client.get("/v1/payouts/account/transfer/payout")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("Error retrieving payout history", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vault_account_generic_error(self, mock_service_class):
+        """Test getting vault account when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.get_vault_account.side_effect = Exception("Network error")
+
+        response = self.client.get("/v1/opentrade/vaultsAccount/0x123/0x456")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("Error retrieving vault account", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vaults_list_generic_error(self, mock_service_class):
+        """Test getting vaults list when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.get_vaults_list.side_effect = Exception("Network error")
+
+        response = self.client.get("/v1/opentrade/vaults")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("Error retrieving vaults list", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vault_overview_generic_error(self, mock_service_class):
+        """Test getting vault overview when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.get_vault_overview.side_effect = Exception("Network error")
+
+        response = self.client.get("/v1/opentrade/vaults/0x123")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("Error retrieving vault overview", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_recipients_list_generic_error(self, mock_service_class):
+        """Test getting recipients list when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.get_recipients_list.side_effect = Exception("Network error")
+
+        response = self.client.get("/v1/recipients")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_create_recipient_generic_error(self, mock_service_class):
+        """Test creating recipient when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.create_recipient.side_effect = Exception("Network error")
+
+        recipient_data = {
+            "user_id": "user-123",
+            "type": "transfer",
+            "document_type": "CC",
+            "document_number": "1234567890",
+            "bank_code": "001",
+            "account_number": "123456789",
+            "account_type": "checking",
+            "provider": "cobre",
+            "enabled": True,
+        }
+
+        response = self.client.post("/v1/recipients", json=recipient_data)
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_update_recipient_generic_error(self, mock_service_class):
+        """Test updating recipient when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.update_recipient.side_effect = Exception("Network error")
+
+        recipient_data = {
+            "first_name": "Jane",
+        }
+
+        response = self.client.put("/v1/recipients/rec-1", json=recipient_data)
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_delete_recipient_generic_error(self, mock_service_class):
+        """Test deleting recipient when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.delete_recipient.side_effect = Exception("Network error")
+
+        response = self.client.delete("/v1/recipients/rec-1")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_create_blockchain_wallet_generic_error(self, mock_service_class):
+        """Test creating blockchain wallet when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.create_blockchain_wallet.side_effect = Exception("Network error")
+
+        wallet_data = {
+            "name": "New Wallet",
+            "provider": "cobre",
+            "wallet_id": "wallet_12345",
+            "network": "ethereum",
+            "enabled": True,
+        }
+
+        response = self.client.post("/v1/blockchain-wallets", json=wallet_data)
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_update_blockchain_wallet_generic_error(self, mock_service_class):
+        """Test updating blockchain wallet when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.update_blockchain_wallet.side_effect = Exception("Network error")
+
+        wallet_data = {
+            "name": "Updated Wallet",
+        }
+
+        response = self.client.put("/v1/blockchain-wallets/wallet-1", json=wallet_data)
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_delete_blockchain_wallet_generic_error(self, mock_service_class):
+        """Test deleting blockchain wallet when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.delete_blockchain_wallet.side_effect = Exception("Network error")
+
+        response = self.client.delete("/v1/blockchain-wallets/wallet-1")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_payout_history_with_error_detail(self, mock_service_class):
+        """Test getting payout history with error detail."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.apis.cassandra.errors import CassandraAPIClientError
+        mock_service_class.get_payout_history.side_effect = CassandraAPIClientError(
+            "Error calling Cassandra API",
+            status_code=502,
+            error_detail={
+                "error": {
+                    "message": "Payout history error",
+                    "code": "PAYOUT_ERROR",
+                }
+            },
+        )
+
+        response = self.client.get("/v1/payouts/account/transfer/payout")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_payout_history_without_error_detail(self, mock_service_class):
+        """Test getting payout history without error detail."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.apis.cassandra.errors import CassandraAPIClientError
+        mock_service_class.get_payout_history.side_effect = CassandraAPIClientError(
+            "Error calling Cassandra API",
+            status_code=502,
+            error_detail=None,
+        )
+
+        response = self.client.get("/v1/payouts/account/transfer/payout")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_recipients_generic_error(self, mock_service_class):
+        """Test getting recipients when generic error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_service_class.get_recipients.side_effect = Exception("Network error")
+
+        response = self.client.get(
+            "/v1/payouts/account/transfer/recipient?provider=kira&user_id=user-123"
+        )
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    @patch("app.routes.monetization_routes.UserService")
+    def test_get_recipients_with_cobre_provider(self, mock_user_service, mock_service_class):
+        """Test getting recipients with cobre provider."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        mock_user_service.get_user_by_firebase_uid.return_value = {"id": "user-123"}
+        from app.common.apis.cassandra.dtos import RecipientResponse
+        mock_recipients = [
+            RecipientResponse(
+                recipient_id="rec-1",
+                first_name="John",
+                last_name="Doe",
+                account_type="PSE",
+            )
+        ]
+        mock_service_class.get_recipients.return_value = mock_recipients
+
+        response = self.client.get(
+            "/v1/payouts/account/transfer/recipient?provider=cobre"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("recipients", data)
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_balance_invalid_provider(self, mock_service_class):
+        """Test getting balance with invalid provider."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        response = self.client.get(
+            "/v1/payouts/account/transfer/wallets/wallet-123/balances?provider=invalid"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertIn("Invalid provider", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_quote_configuration_error(self, mock_service_class):
+        """Test getting quote when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.get_quote.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        response = self.client.get(
+            "/v1/payouts/account/transfer/quote?amount=100&base_currency=USD&quote_currency=COP&provider=kira"
+        )
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_quote_cassandra_error(self, mock_service_class):
+        """Test getting quote when Cassandra error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.apis.cassandra.errors import CassandraAPIClientError
+        mock_service_class.get_quote.side_effect = CassandraAPIClientError(
+            "Error calling Cassandra API",
+            status_code=502,
+            error_detail={
+                "error": {
+                    "message": "Quote error",
+                    "code": "QUOTE_ERROR",
+                }
+            },
+        )
+
+        response = self.client.get(
+            "/v1/payouts/account/transfer/quote?amount=100&base_currency=USD&quote_currency=COP&provider=kira"
+        )
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vault_account_configuration_error(self, mock_service_class):
+        """Test getting vault account when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.get_vault_account.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        response = self.client.get("/v1/opentrade/vaultsAccount/0x123/0x456")
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vault_account_cassandra_error(self, mock_service_class):
+        """Test getting vault account when Cassandra error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.apis.cassandra.errors import CassandraAPIClientError
+        mock_service_class.get_vault_account.side_effect = CassandraAPIClientError(
+            "Error calling Cassandra API",
+            status_code=404,
+            error_detail={
+                "error": {
+                    "message": "Vault not found",
+                    "code": "NOT_FOUND",
+                }
+            },
+        )
+
+        response = self.client.get("/v1/opentrade/vaultsAccount/0x123/0x456")
+
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vaults_list_configuration_error(self, mock_service_class):
+        """Test getting vaults list when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.get_vaults_list.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        response = self.client.get("/v1/opentrade/vaults")
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vaults_list_cassandra_error(self, mock_service_class):
+        """Test getting vaults list when Cassandra error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.apis.cassandra.errors import CassandraAPIClientError
+        mock_service_class.get_vaults_list.side_effect = CassandraAPIClientError(
+            "Error calling Cassandra API",
+            status_code=502,
+            error_detail={
+                "error": {
+                    "message": "Vaults error",
+                    "code": "VAULTS_ERROR",
+                }
+            },
+        )
+
+        response = self.client.get("/v1/opentrade/vaults")
+
+        self.assertEqual(response.status_code, 502)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vault_overview_configuration_error(self, mock_service_class):
+        """Test getting vault overview when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.get_vault_overview.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        response = self.client.get("/v1/opentrade/vaults/0x123")
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_vault_overview_cassandra_error(self, mock_service_class):
+        """Test getting vault overview when Cassandra error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.apis.cassandra.errors import CassandraAPIClientError
+        mock_service_class.get_vault_overview.side_effect = CassandraAPIClientError(
+            "Error calling Cassandra API",
+            status_code=404,
+            error_detail={
+                "error": {
+                    "message": "Vault not found",
+                    "code": "NOT_FOUND",
+                }
+            },
+        )
+
+        response = self.client.get("/v1/opentrade/vaults/0x123")
+
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertIn("error", data["detail"])
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_recipients_list_configuration_error(self, mock_service_class):
+        """Test getting recipients list when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.get_recipients_list.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        response = self.client.get("/v1/recipients")
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_create_recipient_configuration_error(self, mock_service_class):
+        """Test creating recipient when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.create_recipient.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        recipient_data = {
+            "user_id": "user-123",
+            "type": "transfer",
+            "document_type": "CC",
+            "document_number": "1234567890",
+            "bank_code": "001",
+            "account_number": "123456789",
+            "account_type": "checking",
+            "provider": "cobre",
+            "enabled": True,
+        }
+
+        response = self.client.post("/v1/recipients", json=recipient_data)
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_update_recipient_configuration_error(self, mock_service_class):
+        """Test updating recipient when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.update_recipient.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        recipient_data = {
+            "first_name": "Jane",
+        }
+
+        response = self.client.put("/v1/recipients/rec-1", json=recipient_data)
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_delete_recipient_configuration_error(self, mock_service_class):
+        """Test deleting recipient when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.delete_recipient.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        response = self.client.delete("/v1/recipients/rec-1")
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_get_blockchain_wallets_configuration_error(self, mock_service_class):
+        """Test getting blockchain wallets when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.get_blockchain_wallets.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        response = self.client.get("/v1/blockchain-wallets")
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_create_blockchain_wallet_configuration_error(self, mock_service_class):
+        """Test creating blockchain wallet when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.create_blockchain_wallet.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        wallet_data = {
+            "name": "New Wallet",
+            "provider": "cobre",
+            "wallet_id": "wallet_12345",
+            "network": "ethereum",
+            "enabled": True,
+        }
+
+        response = self.client.post("/v1/blockchain-wallets", json=wallet_data)
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_update_blockchain_wallet_configuration_error(self, mock_service_class):
+        """Test updating blockchain wallet when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.update_blockchain_wallet.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        wallet_data = {
+            "name": "Updated Wallet",
+        }
+
+        response = self.client.put("/v1/blockchain-wallets/wallet-1", json=wallet_data)
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
+
+    @patch("app.routes.monetization_routes.MonetizationService")
+    def test_delete_blockchain_wallet_configuration_error(self, mock_service_class):
+        """Test deleting blockchain wallet when configuration error occurs."""
+        self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
+
+        from app.common.errors import MissingCredentialsError
+        mock_service_class.delete_blockchain_wallet.side_effect = MissingCredentialsError(
+            "CASSANDRA_API_KEY not found"
+        )
+
+        response = self.client.delete("/v1/blockchain-wallets/wallet-1")
+
+        self.assertEqual(response.status_code, 500)
+        data = response.json()
+        self.assertIn("configuration error", data["detail"].lower())
 
 
 if __name__ == "__main__":

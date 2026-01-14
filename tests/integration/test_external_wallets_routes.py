@@ -5,13 +5,10 @@ from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from faker import Faker
 
 from app.common.apis.cassandra.dtos import ExternalWalletResponse
 from app.middleware.auth import get_current_user
 from app.routes.monetization_routes import router
-
-fake = Faker()
 
 
 class TestExternalWalletsRoutes(unittest.TestCase):
@@ -115,7 +112,7 @@ class TestExternalWalletsRoutes(unittest.TestCase):
         """Test creating external wallet successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
-        wallet_id = fake.uuid4()
+        wallet_id = "2f4d0fad-185a-49b5-88d9-bf8c1c45c626"
         mock_wallet_response = ExternalWalletResponse(
             id=wallet_id,
             external_wallet_id="123e4567-e89b-12d3-a456-426614174001",

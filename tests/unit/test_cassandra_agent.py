@@ -293,6 +293,26 @@ class TestCassandraAgent(unittest.TestCase):
 
     @patch(PATCH_REST_AGENT)
     @patch(PATCH_SECRETS)
+    def test_put_generic_error(self, mock_get_secret, mock_rest_agent_class):
+        """Test PUT request with generic exception."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        generic_error = ValueError("Unexpected error")
+        mock_rest_agent.make_request.side_effect = generic_error
+
+        agent = CassandraAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+
+        with self.assertRaises(CassandraAPIClientError) as context:
+            agent.put("/test/path", json={"data": "test"})
+
+        self.assertIn("Unexpected error calling Cassandra API", str(context.exception))
+
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
     def test_delete_success_204(self, mock_get_secret, mock_rest_agent_class):
         """Test successful DELETE request with 204 status."""
         mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
