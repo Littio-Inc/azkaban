@@ -2,10 +2,11 @@
 
 import os
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from fastapi import HTTPException, status
 
+from app.common.enums import Environment
 from app.middleware.mfa import require_mfa_verification
 
 
@@ -116,50 +117,6 @@ class TestMFAMiddleware(unittest.TestCase):
 
         self.assertEqual(result, self.mock_user)
 
-    @patch("app.middleware.mfa.TOTPService.verify_totp")
-    @patch("app.middleware.mfa.TOTPStorageService.get_secret")
-    @patch.dict(os.environ, {"ENVIRONMENT": "development", "FIXED_OTP_CODE": "777777"})
-    def test_require_mfa_verification_fixed_otp_code_development(self, mock_get_secret, mock_verify_totp):
-        """Test MFA verification with fixed OTP code in development environment."""
-        mock_get_secret.return_value = self.valid_secret
-        mock_verify_totp.return_value = False
-
-        result = require_mfa_verification(
-            current_user=self.mock_user,
-            totp_code="777777",
-        )
-
-        self.assertEqual(result, self.mock_user)
-
-    @patch("app.middleware.mfa.TOTPService.verify_totp")
-    @patch("app.middleware.mfa.TOTPStorageService.get_secret")
-    @patch.dict(os.environ, {"ENVIRONMENT": "dev", "FIXED_OTP_CODE": "666666"})
-    def test_require_mfa_verification_fixed_otp_code_dev(self, mock_get_secret, mock_verify_totp):
-        """Test MFA verification with fixed OTP code in dev environment."""
-        mock_get_secret.return_value = self.valid_secret
-        mock_verify_totp.return_value = False
-
-        result = require_mfa_verification(
-            current_user=self.mock_user,
-            totp_code="666666",
-        )
-
-        self.assertEqual(result, self.mock_user)
-
-    @patch("app.middleware.mfa.TOTPService.verify_totp")
-    @patch("app.middleware.mfa.TOTPStorageService.get_secret")
-    @patch.dict(os.environ, {"ENVIRONMENT": "stage", "FIXED_OTP_CODE": "555555"})
-    def test_require_mfa_verification_fixed_otp_code_stage(self, mock_get_secret, mock_verify_totp):
-        """Test MFA verification with fixed OTP code in stage environment."""
-        mock_get_secret.return_value = self.valid_secret
-        mock_verify_totp.return_value = False
-
-        result = require_mfa_verification(
-            current_user=self.mock_user,
-            totp_code="555555",
-        )
-
-        self.assertEqual(result, self.mock_user)
 
     @patch("app.middleware.mfa.TOTPService.verify_totp")
     @patch("app.middleware.mfa.TOTPStorageService.get_secret")
@@ -198,15 +155,11 @@ class TestMFAMiddleware(unittest.TestCase):
 
     @patch("app.middleware.mfa.TOTPService.verify_totp")
     @patch("app.middleware.mfa.TOTPStorageService.get_secret")
-    @patch.dict(os.environ, {"ENVIRONMENT": "local"}, clear=False)
+    @patch.dict(os.environ, {"ENVIRONMENT": "local"}, clear=True)
     def test_require_mfa_verification_fixed_otp_code_not_set(self, mock_get_secret, mock_verify_totp):
         """Test MFA verification when fixed OTP code is not set in local environment."""
         mock_get_secret.return_value = self.valid_secret
         mock_verify_totp.return_value = False
-
-        # Remove FIXED_OTP_CODE if it exists
-        if "FIXED_OTP_CODE" in os.environ:
-            del os.environ["FIXED_OTP_CODE"]
 
         with self.assertRaises(HTTPException) as context:
             require_mfa_verification(
@@ -233,9 +186,8 @@ class TestMFAMiddleware(unittest.TestCase):
 
         self.assertEqual(result, self.mock_user)
 
-    @patch("app.middleware.mfa.TOTPService.verify_totp")
     @patch("app.middleware.mfa.TOTPStorageService.get_secret")
-    def test_require_mfa_verification_empty_totp_code(self, mock_get_secret, mock_verify_totp):
+    def test_require_mfa_verification_empty_totp_code(self, mock_get_secret):
         """Test MFA verification with empty TOTP code."""
         mock_get_secret.return_value = self.valid_secret
 

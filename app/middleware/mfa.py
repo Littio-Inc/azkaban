@@ -20,11 +20,6 @@ TOTP_CODE_HEADER = "X-TOTP-Code"
 DEV_STAGING_ENVS = frozenset((
     Environment.LOCAL.value,
     Environment.STAGING.value,
-    "local",
-    "development",
-    "dev",
-    "staging",
-    "stage",
 ))
 
 # Default values for function parameters (to avoid B008/WPS404)

@@ -2,6 +2,7 @@
 
 import unittest
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -52,21 +53,21 @@ class TestMonetizationRoutes(unittest.TestCase):
         self.app.include_router(router, prefix="/v1")
         self.client = TestClient(self.app)
         self.mock_current_user = {
-            "firebase_uid": "user-uid-123",
-            "email": "user@littio.co",
-            "name": "Test User",
-            "picture": None,
+            "firebase_uid": fake.uuid4(),
+            "email": fake.email(),
+            "name": fake.name(),
+            "picture": fake.image_url() if fake.boolean() else None,
         }
 
     def tearDown(self):
         """Clean up after each test."""
         self.app.dependency_overrides.clear()
 
-    def _mock_require_mfa_verification(self):
+    def _mock_require_mfa_verification(self) -> None:
         """Helper to mock require_mfa_verification dependency."""
         self.app.dependency_overrides[require_mfa_verification] = lambda: self.mock_current_user
 
-    def _create_test_payout_request(self, **kwargs):
+    def _create_test_payout_request(self, **kwargs) -> dict[str, Any]:
         """Helper to create test payout request."""
         quote_id = fake.uuid4()
         defaults = {
@@ -89,29 +90,35 @@ class TestMonetizationRoutes(unittest.TestCase):
         """Test getting quote successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        quote_id = fake.uuid4()
+        base_amount = fake.pyfloat(left_digits=3, right_digits=2, positive=True)
+        quote_amount = fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+        rate = quote_amount / base_amount
+        expiration_ts = fake.iso8601()
+
         mock_quote = QuoteResponse(
-            quote_id="quote-123",
+            quote_id=quote_id,
             base_currency="USD",
             quote_currency="COP",
-            base_amount=100.0,
-            quote_amount=1000.0,
-            rate=10.0,
-            balam_rate=1.5,
+            base_amount=base_amount,
+            quote_amount=quote_amount,
+            rate=rate,
+            balam_rate=fake.pyfloat(left_digits=1, right_digits=2, positive=True, min_value=1.0, max_value=2.0),
             fixed_fee=0,
             pct_fee=0,
             status="active",
-            expiration_ts="2024-01-01T00:00:00",
-            expiration_ts_utc="2024-01-01T00:00:00Z",
+            expiration_ts=expiration_ts,
+            expiration_ts_utc=expiration_ts + "Z",
         )
         mock_service_class.get_quote.return_value = mock_quote
 
         response = self.client.get(
-            "/v1/payouts/account/transfer/quote?amount=100&base_currency=USD&quote_currency=COP&provider=kira"
+            f"/v1/payouts/account/transfer/quote?amount={base_amount}&base_currency=USD&quote_currency=COP&provider=kira"
         )
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["quote_id"], "quote-123")
+        self.assertEqual(data["quote_id"], quote_id)
         mock_service_class.get_quote.assert_called_once()
 
     @patch("app.routes.monetization_routes.MonetizationService")
@@ -133,18 +140,19 @@ class TestMonetizationRoutes(unittest.TestCase):
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         from app.common.apis.cassandra.dtos import RecipientResponse
+        user_id = fake.uuid4()
         mock_recipients = [
             RecipientResponse(
-                recipient_id="rec-1",
-                first_name="John",
-                last_name="Doe",
+                recipient_id=fake.uuid4(),
+                first_name=fake.first_name(),
+                last_name=fake.last_name(),
                 account_type="PSE",
             )
         ]
         mock_service_class.get_recipients.return_value = mock_recipients
 
         response = self.client.get(
-            "/v1/payouts/account/transfer/recipient?provider=kira&user_id=user-123"
+            f"/v1/payouts/account/transfer/recipient?provider=kira&user_id={user_id}"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -157,23 +165,25 @@ class TestMonetizationRoutes(unittest.TestCase):
         """Test getting balance successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        wallet_id = fake.uuid4()
+        amount = str(fake.pydecimal(left_digits=4, right_digits=2, positive=True))
         mock_balance = BalanceResponse(
-            wallet_id="wallet-123",
+            wallet_id=wallet_id,
             network="polygon",
             balances=[
-                TokenBalance(token="USDC", amount="1000.0", decimals=6),
+                TokenBalance(token="USDC", amount=amount, decimals=6),
             ],
         )
         mock_service_class.get_balance.return_value = mock_balance
 
         response = self.client.get(
-            "/v1/payouts/account/transfer/wallets/wallet-123/balances?provider=kira"
+            f"/v1/payouts/account/transfer/wallets/{wallet_id}/balances?provider=kira"
         )
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         # BalanceResponse uses alias walletId, model_dump() should preserve it with populate_by_name=True
-        self.assertEqual(data.get("walletId") or data.get("wallet_id"), "wallet-123")
+        self.assertEqual(data.get("walletId") or data.get("wallet_id"), wallet_id)
 
     @patch("app.routes.monetization_routes.MonetizationService")
     def test_get_payout_history_success(self, mock_service_class):
@@ -181,21 +191,27 @@ class TestMonetizationRoutes(unittest.TestCase):
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         from app.common.apis.cassandra.dtos import PayoutHistoryItem
+        payout_id = fake.uuid4()
+        user_id = fake.uuid4()
+        timestamp = fake.iso8601()
+        initial_amount = str(fake.pydecimal(left_digits=3, right_digits=2, positive=True))
+        final_amount = str(fake.pydecimal(left_digits=4, right_digits=2, positive=True))
+        rate = str(float(final_amount) / float(initial_amount))
         mock_history = PayoutHistoryResponse(
             status="success",
             message="OK",
             data=[
                 PayoutHistoryItem(
-                    id="payout-1",
-                    created_at="2024-01-01T00:00:00",
-                    updated_at="2024-01-01T00:00:00",
+                    id=payout_id,
+                    created_at=timestamp,
+                    updated_at=timestamp,
                     initial_currency="USD",
                     final_currency="COP",
-                    initial_amount="100.0",
-                    final_amount="1000.0",
-                    rate="10.0",
+                    initial_amount=initial_amount,
+                    final_amount=final_amount,
+                    rate=rate,
                     status="completed",
-                    user_id="user-123",
+                    user_id=user_id,
                     provider=1,
                 )
             ],
@@ -330,14 +346,17 @@ class TestMonetizationRoutes(unittest.TestCase):
         """Test getting recipients list successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        recipient_id = fake.uuid4()
+        user_id = fake.uuid4()
+        timestamp = fake.iso8601()
         mock_recipients = [
             RecipientListResponse(
-                id="rec-1",
-                user_id="user-123",
+                id=recipient_id,
+                user_id=user_id,
                 type="transfer",
                 provider="BBVA",
-                created_at="2025-12-31T21:05:11.794956+00:00",
-                updated_at="2025-12-31T21:05:11.794956+00:00",
+                created_at=timestamp,
+                updated_at=timestamp,
             )
         ]
         mock_service_class.get_recipients_list.return_value = mock_recipients
@@ -354,25 +373,28 @@ class TestMonetizationRoutes(unittest.TestCase):
         """Test creating recipient successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        recipient_id = fake.uuid4()
+        user_id = fake.uuid4()
+        timestamp = fake.iso8601()
         mock_recipient = RecipientListResponse(
-            id="rec-new",
-            user_id="user-123",
+            id=recipient_id,
+            user_id=user_id,
             type="transfer",
             provider="cobre",
-            created_at="2025-12-31T21:05:11.794956+00:00",
-            updated_at="2025-12-31T21:05:11.794956+00:00",
+            created_at=timestamp,
+            updated_at=timestamp,
         )
         mock_service_class.create_recipient.return_value = mock_recipient
 
         recipient_data = {
-            "user_id": "user-123",
+            "user_id": user_id,
             "type": "transfer",
-            "first_name": "John",
-            "last_name": "Doe",
+            "first_name": fake.first_name(),
+            "last_name": fake.last_name(),
             "document_type": "CC",
-            "document_number": "1234567890",
-            "bank_code": "001",
-            "account_number": "123456789",
+            "document_number": fake.numerify("##########"),
+            "bank_code": fake.numerify("###"),
+            "account_number": fake.numerify("#########"),
             "account_type": "checking",
             "provider": "cobre",
             "enabled": True,
@@ -382,36 +404,41 @@ class TestMonetizationRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["id"], "rec-new")
+        self.assertEqual(data["id"], recipient_id)
 
     @patch("app.routes.monetization_routes.MonetizationService")
     def test_update_recipient_success(self, mock_service_class):
         """Test updating recipient successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        recipient_id = fake.uuid4()
+        user_id = fake.uuid4()
+        first_name = fake.first_name()
+        last_name = fake.last_name()
+        timestamp = fake.iso8601()
         mock_recipient = RecipientListResponse(
-            id="rec-1",
-            user_id="user-123",
+            id=recipient_id,
+            user_id=user_id,
             type="transfer",
-            first_name="Jane",
-            last_name="Smith",
+            first_name=first_name,
+            last_name=last_name,
             provider="cobre",
             enabled=True,
-            created_at="2025-12-31T21:05:11.794956+00:00",
-            updated_at="2025-12-31T21:05:11.794956+00:00",
+            created_at=timestamp,
+            updated_at=timestamp,
         )
         mock_service_class.update_recipient.return_value = mock_recipient
 
         recipient_data = {
-            "first_name": "Jane",
-            "last_name": "Smith",
+            "first_name": first_name,
+            "last_name": last_name,
         }
 
-        response = self.client.put("/v1/recipients/rec-1", json=recipient_data)
+        response = self.client.put(f"/v1/recipients/{recipient_id}", json=recipient_data)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["first_name"], "Jane")
+        self.assertEqual(data["first_name"], first_name)
 
     @patch("app.routes.monetization_routes.MonetizationService")
     def test_delete_recipient_success(self, mock_service_class):
@@ -420,26 +447,30 @@ class TestMonetizationRoutes(unittest.TestCase):
 
         mock_service_class.delete_recipient.return_value = None
 
-        response = self.client.delete("/v1/recipients/rec-1")
+        recipient_id = fake.uuid4()
+        response = self.client.delete(f"/v1/recipients/{recipient_id}")
 
         self.assertEqual(response.status_code, 204)
-        mock_service_class.delete_recipient.assert_called_once_with(recipient_id="rec-1")
+        mock_service_class.delete_recipient.assert_called_once_with(recipient_id=recipient_id)
 
     @patch("app.routes.monetization_routes.MonetizationService")
     def test_get_blockchain_wallets_success(self, mock_service_class):
         """Test getting blockchain wallets successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        wallet_id = fake.uuid4()
+        wallet_address = fake.hexify(text="0x^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^", upper=False)
+        timestamp = fake.iso8601()
         mock_wallets = [
             BlockchainWalletResponse(
-                id="wallet-1",
-                name="Test Wallet",
+                id=wallet_id,
+                name=fake.word().title() + " Wallet",
                 provider="FIREBLOCKS",
-                wallet_id="0x123",
+                wallet_id=wallet_address,
                 network="POLYGON",
                 enabled=True,
-                created_at="2025-12-31T15:22:32.738242+00:00",
-                updated_at="2025-12-31T15:22:32.738242+00:00",
+                created_at=timestamp,
+                updated_at=timestamp,
             )
         ]
         mock_service_class.get_blockchain_wallets.return_value = mock_wallets
@@ -456,22 +487,26 @@ class TestMonetizationRoutes(unittest.TestCase):
         """Test creating blockchain wallet successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        wallet_id = fake.uuid4()
+        wallet_name = fake.word().title() + " Wallet"
+        wallet_address = fake.hexify(text="wallet_^^^^^", upper=False)
+        timestamp = fake.iso8601()
         mock_wallet = BlockchainWalletResponse(
-            id="wallet-new",
-            name="New Wallet",
+            id=wallet_id,
+            name=wallet_name,
             provider="cobre",
-            wallet_id="wallet_12345",
+            wallet_id=wallet_address,
             network="ethereum",
             enabled=True,
-            created_at="2025-12-31T15:22:32.738242+00:00",
-            updated_at="2025-12-31T15:22:32.738242+00:00",
+            created_at=timestamp,
+            updated_at=timestamp,
         )
         mock_service_class.create_blockchain_wallet.return_value = mock_wallet
 
         wallet_data = {
-            "name": "New Wallet",
+            "name": wallet_name,
             "provider": "cobre",
-            "wallet_id": "wallet_12345",
+            "wallet_id": wallet_address,
             "network": "ethereum",
             "enabled": True,
         }
@@ -480,35 +515,39 @@ class TestMonetizationRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["id"], "wallet-new")
+        self.assertEqual(data["id"], wallet_id)
 
     @patch("app.routes.monetization_routes.MonetizationService")
     def test_update_blockchain_wallet_success(self, mock_service_class):
         """Test updating blockchain wallet successfully."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
+        wallet_id = fake.uuid4()
+        wallet_name = fake.word().title() + " Wallet"
+        wallet_address = fake.hexify(text="wallet_^^^^^", upper=False)
+        timestamp = fake.iso8601()
         mock_wallet = BlockchainWalletResponse(
-            id="wallet-1",
-            name="Updated Wallet",
+            id=wallet_id,
+            name=wallet_name,
             provider="cobre",
-            wallet_id="wallet_12345",
+            wallet_id=wallet_address,
             network="ethereum",
             enabled=False,
-            created_at="2025-12-31T15:22:32.738242+00:00",
-            updated_at="2025-12-31T15:22:32.738242+00:00",
+            created_at=timestamp,
+            updated_at=timestamp,
         )
         mock_service_class.update_blockchain_wallet.return_value = mock_wallet
 
         wallet_data = {
-            "name": "Updated Wallet",
+            "name": wallet_name,
             "enabled": False,
         }
 
-        response = self.client.put("/v1/blockchain-wallets/wallet-1", json=wallet_data)
+        response = self.client.put(f"/v1/blockchain-wallets/{wallet_id}", json=wallet_data)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["name"], "Updated Wallet")
+        self.assertEqual(data["name"], wallet_name)
 
     @patch("app.routes.monetization_routes.MonetizationService")
     def test_delete_blockchain_wallet_success(self, mock_service_class):
@@ -517,10 +556,11 @@ class TestMonetizationRoutes(unittest.TestCase):
 
         mock_service_class.delete_blockchain_wallet.return_value = None
 
-        response = self.client.delete("/v1/blockchain-wallets/wallet-1")
+        wallet_id = fake.uuid4()
+        response = self.client.delete(f"/v1/blockchain-wallets/{wallet_id}")
 
         self.assertEqual(response.status_code, 204)
-        mock_service_class.delete_blockchain_wallet.assert_called_once_with(wallet_id="wallet-1")
+        mock_service_class.delete_blockchain_wallet.assert_called_once_with(wallet_id=wallet_id)
 
     @patch("app.routes.monetization_routes.MonetizationService")
     def test_get_quote_generic_error(self, mock_service_class):
@@ -544,8 +584,9 @@ class TestMonetizationRoutes(unittest.TestCase):
 
         mock_service_class.get_balance.side_effect = Exception("Network error")
 
+        wallet_id = fake.uuid4()
         response = self.client.get(
-            "/v1/payouts/account/transfer/wallets/wallet-123/balances?provider=kira"
+            f"/v1/payouts/account/transfer/wallets/{wallet_id}/balances?provider=kira"
         )
 
         self.assertEqual(response.status_code, 502)
@@ -559,16 +600,17 @@ class TestMonetizationRoutes(unittest.TestCase):
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
         from app.common.apis.cassandra.dtos import RecipientResponse
+        user_id = fake.uuid4()
         mock_recipients = [
             RecipientResponse(
-                recipient_id="rec-1",
-                first_name="John",
-                last_name="Doe",
+                recipient_id=fake.uuid4(),
+                first_name=fake.first_name(),
+                last_name=fake.last_name(),
                 account_type="PSE",
             )
         ]
         mock_service_class.get_recipients.return_value = mock_recipients
-        mock_user_service.get_user_by_firebase_uid.return_value = {"id": "user-123"}
+        mock_user_service.get_user_by_firebase_uid.return_value = {"id": user_id}
 
         response = self.client.get(
             "/v1/payouts/account/transfer/recipient?provider=cobre"
@@ -955,13 +997,14 @@ class TestMonetizationRoutes(unittest.TestCase):
 
         mock_service_class.create_recipient.side_effect = Exception("Network error")
 
+        user_id = fake.uuid4()
         recipient_data = {
-            "user_id": "user-123",
+            "user_id": user_id,
             "type": "transfer",
             "document_type": "CC",
-            "document_number": "1234567890",
-            "bank_code": "001",
-            "account_number": "123456789",
+            "document_number": fake.numerify("##########"),
+            "bank_code": fake.numerify("###"),
+            "account_number": fake.numerify("#########"),
             "account_type": "checking",
             "provider": "cobre",
             "enabled": True,
@@ -980,11 +1023,13 @@ class TestMonetizationRoutes(unittest.TestCase):
 
         mock_service_class.update_recipient.side_effect = Exception("Network error")
 
+        recipient_id = fake.uuid4()
+        first_name = fake.first_name()
         recipient_data = {
-            "first_name": "Jane",
+            "first_name": first_name,
         }
 
-        response = self.client.put("/v1/recipients/rec-1", json=recipient_data)
+        response = self.client.put(f"/v1/recipients/{recipient_id}", json=recipient_data)
 
         self.assertEqual(response.status_code, 502)
         data = response.json()
@@ -1116,13 +1161,14 @@ class TestMonetizationRoutes(unittest.TestCase):
         """Test getting recipients with cobre provider."""
         self.app.dependency_overrides[get_current_user] = lambda: self.mock_current_user
 
-        mock_user_service.get_user_by_firebase_uid.return_value = {"id": "user-123"}
+        user_id = fake.uuid4()
+        mock_user_service.get_user_by_firebase_uid.return_value = {"id": user_id}
         from app.common.apis.cassandra.dtos import RecipientResponse
         mock_recipients = [
             RecipientResponse(
-                recipient_id="rec-1",
-                first_name="John",
-                last_name="Doe",
+                recipient_id=fake.uuid4(),
+                first_name=fake.first_name(),
+                last_name=fake.last_name(),
                 account_type="PSE",
             )
         ]
@@ -1335,13 +1381,14 @@ class TestMonetizationRoutes(unittest.TestCase):
             "CASSANDRA_API_KEY not found"
         )
 
+        user_id = fake.uuid4()
         recipient_data = {
-            "user_id": "user-123",
+            "user_id": user_id,
             "type": "transfer",
             "document_type": "CC",
-            "document_number": "1234567890",
-            "bank_code": "001",
-            "account_number": "123456789",
+            "document_number": fake.numerify("##########"),
+            "bank_code": fake.numerify("###"),
+            "account_number": fake.numerify("#########"),
             "account_type": "checking",
             "provider": "cobre",
             "enabled": True,
@@ -1363,11 +1410,13 @@ class TestMonetizationRoutes(unittest.TestCase):
             "CASSANDRA_API_KEY not found"
         )
 
+        recipient_id = fake.uuid4()
+        first_name = fake.first_name()
         recipient_data = {
-            "first_name": "Jane",
+            "first_name": first_name,
         }
 
-        response = self.client.put("/v1/recipients/rec-1", json=recipient_data)
+        response = self.client.put(f"/v1/recipients/{recipient_id}", json=recipient_data)
 
         self.assertEqual(response.status_code, 500)
         data = response.json()
