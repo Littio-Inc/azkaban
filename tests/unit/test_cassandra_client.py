@@ -940,6 +940,7 @@ class TestCassandraClient(unittest.TestCase):
             external_wallet_id="123e4567-e89b-12d3-a456-426614174001",
             name="Vault Wallet Principal",
             category="OTC",
+            provider="FIREBLOCKS",
             supplier_prefunding=True,
             b2c_funding=False,
             enabled=True,
