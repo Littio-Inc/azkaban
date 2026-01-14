@@ -19,6 +19,7 @@ from app.common.apis.cassandra.errors import CassandraAPIClientError
 from app.common.enums import Provider
 from app.common.errors import MissingCredentialsError
 from app.middleware.auth import get_current_user
+from app.middleware.mfa import require_mfa_verification
 from app.monetization.service import MonetizationService
 from app.user.service import UserService
 
@@ -552,7 +553,7 @@ def get_balance(
 def create_payout(
     account: str,
     payout_data: PayoutCreateRequest = Body(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_mfa_verification),
 ):
     """Create a payout.
 
