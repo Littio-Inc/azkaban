@@ -8,6 +8,8 @@ from app.common.apis.cassandra.dtos import (
     BalanceResponse,
     BlockchainWalletCreateRequest,
     BlockchainWalletUpdateRequest,
+    ExternalWalletCreateRequest,
+    ExternalWalletUpdateRequest,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
@@ -1238,6 +1240,211 @@ def delete_blockchain_wallet(
             detail={
                 ERROR_KEY: {
                     MESSAGE_KEY: "Error deleting blockchain wallet from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+
+
+def _handle_external_wallets_error(cassandra_error: CassandraAPIClientError) -> HTTPException:
+    """Handle Cassandra API error for external wallets endpoint.
+
+    Args:
+        cassandra_error: Cassandra API client error
+
+    Returns:
+        HTTPException: Formatted HTTP exception
+    """
+    error_status_code = cassandra_error.status_code or status.HTTP_502_BAD_GATEWAY
+    error_detail = cassandra_error.error_detail or {}
+    logger.exception(
+        f"Error getting external wallets from Cassandra API (status: {error_status_code}): {cassandra_error}",
+    )
+    error_message, error_code = _extract_error_from_detail(error_detail)
+    return HTTPException(
+        status_code=error_status_code,
+        detail={
+            ERROR_KEY: {
+                MESSAGE_KEY: error_message,
+                CODE_KEY: error_code,
+            },
+        },
+    )
+
+
+@router.get("/external-wallets")
+def get_external_wallets(
+    current_user: dict = Depends(get_current_user),
+):
+    """Get external wallets from v1/external-wallets endpoint.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        dict: External wallets list from Cassandra with format {"wallets": [...]}
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info("Getting external wallets")
+
+    try:
+        wallets_data = MonetizationService.get_external_wallets()
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_external_wallets_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error getting external wallets from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error retrieving external wallets from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    return {"wallets": [wallet.model_dump() for wallet in wallets_data]}
+
+
+@router.post("/external-wallets")
+def create_external_wallet(
+    wallet_data: ExternalWalletCreateRequest = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Create an external wallet.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        wallet_data: Wallet data to create
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Created external wallet from Cassandra
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Creating external wallet - name: {wallet_data.name}, category: {wallet_data.category}")
+
+    try:
+        wallet_response = MonetizationService.create_external_wallet(wallet_data=wallet_data)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_external_wallets_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error creating external wallet from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error creating external wallet from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    return wallet_response.model_dump()
+
+
+@router.put("/external-wallets/{wallet_id}")
+def update_external_wallet(
+    wallet_id: str,
+    wallet_data: ExternalWalletUpdateRequest = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Update an external wallet.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        wallet_id: Wallet ID to update
+        wallet_data: Wallet data to update
+        current_user: Current authenticated user
+
+    Returns:
+        dict: Updated external wallet from Cassandra
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Updating external wallet {wallet_id}")
+
+    try:
+        wallet_response = MonetizationService.update_external_wallet(
+            wallet_id=wallet_id,
+            wallet_data=wallet_data,
+        )
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_external_wallets_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error updating external wallet from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error updating external wallet from monetization service",
+                    CODE_KEY: "INTERNAL_ERROR",
+                },
+            },
+        ) from exc
+    return wallet_response.model_dump()
+
+
+@router.delete("/external-wallets/{wallet_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_external_wallet(
+    wallet_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Delete an external wallet.
+
+    This endpoint requires authentication and proxies requests to Cassandra API.
+
+    Args:
+        wallet_id: Wallet ID to delete
+        current_user: Current authenticated user
+
+    Raises:
+        HTTPException: If API call fails or user is not authenticated
+    """
+    logger.info(f"Deleting external wallet {wallet_id}")
+
+    try:
+        MonetizationService.delete_external_wallet(wallet_id=wallet_id)
+    except MissingCredentialsError as config_error:
+        logger.exception(CONFIG_ERROR_MSG, config_error)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=CONFIG_ERROR_DETAIL,
+        ) from config_error
+    except CassandraAPIClientError as cassandra_error:
+        raise _handle_external_wallets_error(cassandra_error) from cassandra_error
+    except Exception as exc:
+        logger.exception(f"Error deleting external wallet from monetization service: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                ERROR_KEY: {
+                    MESSAGE_KEY: "Error deleting external wallet from monetization service",
                     CODE_KEY: "INTERNAL_ERROR",
                 },
             },

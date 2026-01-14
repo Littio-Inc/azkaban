@@ -8,6 +8,9 @@ from app.common.apis.cassandra.dtos import (
     BlockchainWalletCreateRequest,
     BlockchainWalletResponse,
     BlockchainWalletUpdateRequest,
+    ExternalWalletCreateRequest,
+    ExternalWalletResponse,
+    ExternalWalletUpdateRequest,
     PayoutCreateRequest,
     PayoutHistoryResponse,
     PayoutResponse,
@@ -292,6 +295,69 @@ def _call_delete_blockchain_wallet(
     """
     client = _get_client()
     return client.delete_blockchain_wallet(wallet_id=wallet_id)
+
+
+def _call_get_external_wallets() -> list[ExternalWalletResponse]:
+    """Call get_external_wallets on client.
+
+    Returns:
+        List of ExternalWalletResponse objects
+    """
+    client = _get_client()
+    return client.get_external_wallets()
+
+
+def _call_create_external_wallet(
+    wallet_data: ExternalWalletCreateRequest,
+) -> ExternalWalletResponse:
+    """Call create_external_wallet on client.
+
+    Args:
+        wallet_data: Wallet data to create
+
+    Returns:
+        ExternalWalletResponse object
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.create_external_wallet(wallet_data=wallet_data)
+
+
+def _call_update_external_wallet(
+    wallet_id: str,
+    wallet_data: ExternalWalletUpdateRequest,
+) -> ExternalWalletResponse:
+    """Call update_external_wallet on client.
+
+    Args:
+        wallet_id: Wallet ID to update
+        wallet_data: Wallet data to update
+
+    Returns:
+        ExternalWalletResponse object
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.update_external_wallet(wallet_id=wallet_id, wallet_data=wallet_data)
+
+
+def _call_delete_external_wallet(
+    wallet_id: str,
+) -> None:
+    """Call delete_external_wallet on client.
+
+    Args:
+        wallet_id: Wallet ID to delete
+
+    Raises:
+        CassandraAPIClientError: If API call fails
+    """
+    client = _get_client()
+    return client.delete_external_wallet(wallet_id=wallet_id)
 
 
 class MonetizationService:
@@ -694,4 +760,98 @@ class MonetizationService:
             raise
         except Exception as exc:
             logger.error(f"Unexpected error deleting blockchain wallet: {exc}")
+            raise
+
+    @staticmethod
+    def get_external_wallets() -> list[ExternalWalletResponse]:
+        """Get external wallets from v1/external-wallets endpoint.
+
+        Returns:
+            List of ExternalWalletResponse objects
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_get_external_wallets()
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error getting external wallets: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error getting external wallets: {exc}")
+            raise
+
+    @staticmethod
+    def create_external_wallet(
+        wallet_data: ExternalWalletCreateRequest,
+    ) -> ExternalWalletResponse:
+        """Create an external wallet.
+
+        Args:
+            wallet_data: Wallet data to create
+
+        Returns:
+            ExternalWalletResponse object
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_create_external_wallet(wallet_data=wallet_data)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error creating external wallet: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error creating external wallet: {exc}")
+            raise
+
+    @staticmethod
+    def update_external_wallet(
+        wallet_id: str,
+        wallet_data: ExternalWalletUpdateRequest,
+    ) -> ExternalWalletResponse:
+        """Update an external wallet.
+
+        Args:
+            wallet_id: Wallet ID to update
+            wallet_data: Wallet data to update
+
+        Returns:
+            ExternalWalletResponse object
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_update_external_wallet(wallet_id=wallet_id, wallet_data=wallet_data)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error updating external wallet: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error updating external wallet: {exc}")
+            raise
+
+    @staticmethod
+    def delete_external_wallet(
+        wallet_id: str,
+    ) -> None:
+        """Delete an external wallet.
+
+        Args:
+            wallet_id: Wallet ID to delete
+
+        Raises:
+            MissingCredentialsError: If Cassandra API credentials are missing (raised by CassandraClient)
+            CassandraAPIClientError: If API call fails
+        """
+        try:
+            return _call_delete_external_wallet(wallet_id=wallet_id)
+        except CassandraAPIClientError as api_error:
+            logger.error(f"Cassandra API error deleting external wallet: {api_error}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected error deleting external wallet: {exc}")
             raise

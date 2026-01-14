@@ -6,6 +6,9 @@ from app.common.apis.cassandra.dtos import (
     BlockchainWalletCreateRequest,
     BlockchainWalletResponse,
     BlockchainWalletUpdateRequest,
+    ExternalWalletCreateRequest,
+    ExternalWalletResponse,
+    ExternalWalletUpdateRequest,
     PayoutCreateRequest,
     PayoutHistoryResponse,
     PayoutResponse,
@@ -392,6 +395,80 @@ class CassandraClient:
         req_path = f"/v1/blockchain-wallets/{wallet_id}"
         self._agent.delete(req_path=req_path)
 
+    def get_external_wallets(self) -> list[ExternalWalletResponse]:
+        """Get external wallets from v1/external-wallets endpoint.
+
+        Returns:
+            List of ExternalWalletResponse objects
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = "/v1/external-wallets"
+        response_data = self._agent.get(req_path=req_path)
+        return self._parse_external_wallets_response(response_data)
+
+    def create_external_wallet(
+        self,
+        wallet_data: ExternalWalletCreateRequest,
+    ) -> ExternalWalletResponse:
+        """Create an external wallet.
+
+        Args:
+            wallet_data: Wallet data to create
+
+        Returns:
+            ExternalWalletResponse object
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = "/v1/external-wallets"
+        response_data = self._agent.post(
+            req_path=req_path,
+            json=wallet_data.model_dump(exclude_none=True),
+        )
+        return ExternalWalletResponse(**response_data)
+
+    def update_external_wallet(
+        self,
+        wallet_id: str,
+        wallet_data: ExternalWalletUpdateRequest,
+    ) -> ExternalWalletResponse:
+        """Update an external wallet.
+
+        Args:
+            wallet_id: Wallet ID to update
+            wallet_data: Wallet data to update
+
+        Returns:
+            ExternalWalletResponse object
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"/v1/external-wallets/{wallet_id}"
+        response_data = self._agent.put(
+            req_path=req_path,
+            json=wallet_data.model_dump(exclude_none=True),
+        )
+        return ExternalWalletResponse(**response_data)
+
+    def delete_external_wallet(
+        self,
+        wallet_id: str,
+    ) -> None:
+        """Delete an external wallet.
+
+        Args:
+            wallet_id: Wallet ID to delete
+
+        Raises:
+            CassandraAPIClientError: If API call fails
+        """
+        req_path = f"/v1/external-wallets/{wallet_id}"
+        self._agent.delete(req_path=req_path)
+
     def _parse_recipients_response(self, response_data: dict | list) -> list[RecipientResponse]:
         """Parse recipients response from API.
 
@@ -457,3 +534,25 @@ class CassandraClient:
             return [BlockchainWalletResponse(**wallet) for wallet in response_data]
         # Handle single wallet object
         return [BlockchainWalletResponse(**response_data)]
+
+    def _parse_external_wallets_response(self, response_data: dict | list) -> list[ExternalWalletResponse]:
+        """Parse external wallets response from API.
+
+        Args:
+            response_data: Response data as dict or list
+
+        Returns:
+            List of ExternalWalletResponse objects
+
+        Raises:
+            CassandraAPIClientError: If parsing fails
+        """
+        # Handle response format: {'wallets': [...]}
+        if isinstance(response_data, dict) and WALLETS_KEY in response_data:
+            wallets_list = response_data[WALLETS_KEY]
+            return [ExternalWalletResponse(**wallet) for wallet in wallets_list]
+        # Handle direct list format
+        if isinstance(response_data, list):
+            return [ExternalWalletResponse(**wallet) for wallet in response_data]
+        # Handle single wallet object
+        return [ExternalWalletResponse(**response_data)]

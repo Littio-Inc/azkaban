@@ -10,6 +10,9 @@ from app.common.apis.cassandra.dtos import (
     BlockchainWalletResponse,
     BlockchainWalletUpdateRequest,
     CollateralSetCTO,
+    ExternalWalletCreateRequest,
+    ExternalWalletResponse,
+    ExternalWalletUpdateRequest,
     PayoutCreateRequest,
     PayoutResponse,
     QuoteResponse,
@@ -852,3 +855,172 @@ class TestCassandraClient(unittest.TestCase):
 
         mock_agent.delete.assert_called_once_with(req_path="/v1/blockchain-wallets/wallet-id-123")
 
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_external_wallets_success(self, mock_get_secret, mock_agent_class):
+        """Test successful external wallets retrieval."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {
+            "wallets": [
+                {
+                    "id": "2f4d0fad-185a-49b5-88d9-bf8c1c45c626",
+                    "external_wallet_id": "123e4567-e89b-12d3-a456-426614174000",
+                    "name": "Vault Wallet Principal 2",
+                    "category": "VAULT",
+                    "supplier_prefunding": True,
+                    "b2c_funding": True,
+                    "enabled": True,
+                    "created_at": "2026-01-14T16:53:32.251713+00:00",
+                    "updated_at": "2026-01-14T16:54:21.397067+00:00",
+                }
+            ]
+        }
+
+        client = CassandraClient()
+        result = client.get_external_wallets()
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], ExternalWalletResponse)
+        self.assertEqual(result[0].id, "2f4d0fad-185a-49b5-88d9-bf8c1c45c626")
+        self.assertEqual(result[0].category, "VAULT")
+        mock_agent.get.assert_called_once_with(req_path="/v1/external-wallets")
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_external_wallets_list_format(self, mock_get_secret, mock_agent_class):
+        """Test external wallets retrieval with direct list format."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = [
+            {
+                "id": "2f4d0fad-185a-49b5-88d9-bf8c1c45c626",
+                "external_wallet_id": "123e4567-e89b-12d3-a456-426614174000",
+                "name": "Vault Wallet Principal 2",
+                "category": "VAULT",
+                "supplier_prefunding": True,
+                "b2c_funding": True,
+                "enabled": True,
+                "created_at": "2026-01-14T16:53:32.251713+00:00",
+                "updated_at": "2026-01-14T16:54:21.397067+00:00",
+            }
+        ]
+
+        client = CassandraClient()
+        result = client.get_external_wallets()
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], ExternalWalletResponse)
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_create_external_wallet_success(self, mock_get_secret, mock_agent_class):
+        """Test successful external wallet creation."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.post.return_value = {
+            "id": "2f4d0fad-185a-49b5-88d9-bf8c1c45c626",
+            "external_wallet_id": "123e4567-e89b-12d3-a456-426614174001",
+            "name": "Vault Wallet Principal",
+            "category": "OTC",
+            "supplier_prefunding": True,
+            "b2c_funding": False,
+            "enabled": True,
+            "created_at": "2026-01-14T17:10:01.841814+00:00",
+            "updated_at": "2026-01-14T17:10:01.841814+00:00",
+        }
+
+        client = CassandraClient()
+        wallet_data = ExternalWalletCreateRequest(
+            external_wallet_id="123e4567-e89b-12d3-a456-426614174001",
+            name="Vault Wallet Principal",
+            category="OTC",
+            supplier_prefunding=True,
+            b2c_funding=False,
+            enabled=True,
+        )
+        result = client.create_external_wallet(wallet_data)
+
+        self.assertIsInstance(result, ExternalWalletResponse)
+        self.assertEqual(result.id, "2f4d0fad-185a-49b5-88d9-bf8c1c45c626")
+        self.assertEqual(result.category, "OTC")
+        mock_agent.post.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_update_external_wallet_success(self, mock_get_secret, mock_agent_class):
+        """Test successful external wallet update."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.put.return_value = {
+            "id": "2f4d0fad-185a-49b5-88d9-bf8c1c45c626",
+            "external_wallet_id": "123e4567-e89b-12d3-a456-426614174000",
+            "name": "Vault Wallet Principal 2",
+            "category": "VAULT",
+            "supplier_prefunding": True,
+            "b2c_funding": True,
+            "enabled": True,
+            "created_at": "2026-01-14T16:53:32.251713+00:00",
+            "updated_at": "2026-01-14T16:54:21.397067+00:00",
+        }
+
+        client = CassandraClient()
+        wallet_data = ExternalWalletUpdateRequest(
+            name="Vault Wallet Principal 2",
+            category="VAULT",
+            supplier_prefunding=True,
+            b2c_funding=True,
+            enabled=True,
+        )
+        result = client.update_external_wallet("2f4d0fad-185a-49b5-88d9-bf8c1c45c626", wallet_data)
+
+        self.assertIsInstance(result, ExternalWalletResponse)
+        self.assertEqual(result.name, "Vault Wallet Principal 2")
+        self.assertEqual(result.category, "VAULT")
+        mock_agent.put.assert_called_once()
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_delete_external_wallet_success(self, mock_get_secret, mock_agent_class):
+        """Test successful external wallet deletion."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.delete.return_value = None
+
+        client = CassandraClient()
+        client.delete_external_wallet("2f4d0fad-185a-49b5-88d9-bf8c1c45c626")
+
+        mock_agent.delete.assert_called_once_with(req_path="/v1/external-wallets/2f4d0fad-185a-49b5-88d9-bf8c1c45c626")
+
+    @patch(PATCH_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_get_external_wallets_single_object(self, mock_get_secret, mock_agent_class):
+        """Test external wallets retrieval with single object format."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_agent = MagicMock()
+        mock_agent_class.return_value = mock_agent
+        mock_agent.get.return_value = {
+            "id": "2f4d0fad-185a-49b5-88d9-bf8c1c45c626",
+            "external_wallet_id": "123e4567-e89b-12d3-a456-426614174000",
+            "name": "Vault Wallet Principal 2",
+            "category": "VAULT",
+            "supplier_prefunding": True,
+            "b2c_funding": True,
+            "enabled": True,
+            "created_at": "2026-01-14T16:53:32.251713+00:00",
+            "updated_at": "2026-01-14T16:54:21.397067+00:00",
+        }
+
+        client = CassandraClient()
+        result = client.get_external_wallets()
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], ExternalWalletResponse)

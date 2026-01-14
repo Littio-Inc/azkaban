@@ -246,3 +246,135 @@ class TestCassandraAgent(unittest.TestCase):
 
         self.assertIn("Unexpected error calling Cassandra API", str(context.exception))
 
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_put_success(self, mock_get_secret, mock_rest_agent_class):
+        """Test successful PUT request."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        mock_response = MagicMock(spec=Response)
+        mock_response.json.return_value = {"result": "updated"}
+        mock_rest_agent.make_request.return_value = mock_response
+
+        agent = CassandraAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+        # Also mock update_headers on the actual agent instance
+        agent.update_headers = mock_rest_agent.update_headers
+        result = agent.put("/test/path", json={"data": "test"})
+
+        self.assertEqual(result, {"result": "updated"})
+        mock_rest_agent.update_headers.assert_called_once_with({"x-api-key": API_KEY})
+        mock_rest_agent.make_request.assert_called_once()
+        self.assertTrue(agent._api_key_is_valid)
+
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_put_http_error(self, mock_get_secret, mock_rest_agent_class):
+        """Test PUT request with HTTPError."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        http_error = HTTPError("400 Bad Request")
+        # Mock make_request to raise HTTPError directly
+        mock_rest_agent.make_request.side_effect = http_error
+
+        agent = CassandraAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+
+        with self.assertRaises(CassandraAPIClientError) as context:
+            agent.put("/test/path", json={"data": "test"})
+
+        self.assertIn("Error calling Cassandra API", str(context.exception))
+
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_delete_success_204(self, mock_get_secret, mock_rest_agent_class):
+        """Test successful DELETE request with 204 status."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 204
+        mock_rest_agent.make_request.return_value = mock_response
+
+        agent = CassandraAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+        # Also mock update_headers on the actual agent instance
+        agent.update_headers = mock_rest_agent.update_headers
+        result = agent.delete("/test/path")
+
+        self.assertIsNone(result)
+        mock_rest_agent.update_headers.assert_called_once_with({"x-api-key": API_KEY})
+        mock_rest_agent.make_request.assert_called_once()
+        self.assertTrue(agent._api_key_is_valid)
+
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_delete_success_non_204(self, mock_get_secret, mock_rest_agent_class):
+        """Test successful DELETE request with non-204 status."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 200
+        mock_rest_agent.make_request.return_value = mock_response
+
+        agent = CassandraAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+        # Also mock update_headers on the actual agent instance
+        agent.update_headers = mock_rest_agent.update_headers
+        result = agent.delete("/test/path")
+
+        self.assertIsNone(result)
+        mock_rest_agent.update_headers.assert_called_once_with({"x-api-key": API_KEY})
+        mock_rest_agent.make_request.assert_called_once()
+
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_delete_http_error(self, mock_get_secret, mock_rest_agent_class):
+        """Test DELETE request with HTTPError."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        http_error = HTTPError("404 Not Found")
+        # Mock make_request to raise HTTPError directly
+        mock_rest_agent.make_request.side_effect = http_error
+
+        agent = CassandraAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+
+        with self.assertRaises(CassandraAPIClientError) as context:
+            agent.delete("/test/path")
+
+        self.assertIn("Error calling Cassandra API", str(context.exception))
+
+    @patch(PATCH_REST_AGENT)
+    @patch(PATCH_SECRETS)
+    def test_delete_generic_error(self, mock_get_secret, mock_rest_agent_class):
+        """Test DELETE request with generic exception."""
+        mock_get_secret.side_effect = lambda key: API_URL if key == "CASSANDRA_API_URL" else API_KEY
+        mock_rest_agent = MagicMock()
+        mock_rest_agent_class.return_value = mock_rest_agent
+
+        generic_error = ValueError("Unexpected error")
+        mock_rest_agent.make_request.side_effect = generic_error
+
+        agent = CassandraAgent()
+        # Replace the make_request method on the agent's parent class instance
+        agent.make_request = mock_rest_agent.make_request
+
+        with self.assertRaises(CassandraAPIClientError) as context:
+            agent.delete("/test/path")
+
+        self.assertIn("Unexpected error calling Cassandra API", str(context.exception))
