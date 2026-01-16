@@ -19,7 +19,7 @@ class TestBasiliscoClient(unittest.TestCase):
         mock_agent_class.return_value = mock_agent
 
         mock_response_data = {
-            "transactions": [{"id": "1", "amount": "100"}],
+            "transactions": [{"id": "1", "amount": "100", "amount_dst": "90", "currency_dst": "EUR"}],
             "count": 1,
             "page": 1,
             "limit": 10,
@@ -75,6 +75,8 @@ class TestBasiliscoClient(unittest.TestCase):
             "type": "withdrawal",
             "amount": "1.30",
             "currency": "USD",
+            "amount_dst": "1.20",
+            "currency_dst": "EUR",
         }
 
         client = BasiliscoClient()
@@ -132,6 +134,8 @@ class TestBasiliscoClient(unittest.TestCase):
             "amount": "1.30",
             "currency": "USD",
             "movement_type": "debit",
+            "amount_dst": "1.20",
+            "currency_dst": "EUR",
         }
 
         client = BasiliscoClient()
@@ -152,7 +156,7 @@ class TestBasiliscoClient(unittest.TestCase):
         mock_agent_class.return_value = mock_agent
 
         mock_response_data = {
-            "transactions": [{"id": "1", "amount": "100", "movement_type": "monetization"}],
+            "transactions": [{"id": "1", "amount": "100", "movement_type": "monetization", "amount_dst": "90", "currency_dst": "EUR"}],
             "count": 1,
             "page": 1,
             "limit": 10,

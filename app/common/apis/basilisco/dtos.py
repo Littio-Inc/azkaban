@@ -32,6 +32,8 @@ class TransactionResponse(BaseModel):
     status: str | None = Field(None, description="Transaction status (e.g., 'COMPLETED')")
     origin_provider: str | None = Field(None, description="Origin provider (e.g., 'bridge')")
     movement_type: str | None = Field(None, description="Movement type", alias="movementType")
+    amount_dst: str | None = Field(None, description="Destination amount")
+    currency_dst: str | None = Field(None, description="Destination currency code")
 
     class Config:
         populate_by_name = True
