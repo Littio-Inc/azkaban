@@ -1,12 +1,10 @@
 """MFA (Multi-Factor Authentication) middleware for sensitive operations."""
 
 import logging
-import os
 from typing import Optional
 
 from fastapi import Depends, Header, HTTPException, status
 
-from app.common.enums import Environment
 from app.mfa.service import TOTPService
 from app.mfa.storage import TOTPStorage as TOTPStorageService
 from app.middleware.auth import get_current_user
@@ -16,12 +14,6 @@ logger = logging.getLogger(__name__)
 # Header name for TOTP code
 TOTP_CODE_HEADER = "X-TOTP-Code"
 
-# Development/staging environment names (frozenset to make it immutable)
-DEV_STAGING_ENVS = frozenset((
-    Environment.LOCAL.value,
-    Environment.STAGING.value,
-))
-
 # Default values for function parameters (to avoid B008/WPS404)
 _DEFAULT_CURRENT_USER = Depends(get_current_user)
 _DEFAULT_TOTP_CODE_HEADER = Header(
@@ -29,30 +21,6 @@ _DEFAULT_TOTP_CODE_HEADER = Header(
     alias=TOTP_CODE_HEADER,
     description="TOTP code from Google Authenticator",
 )
-
-
-def _check_fixed_otp_code(totp_code: str, firebase_uid: str) -> bool:
-    """Check if fixed OTP code is valid for development/staging.
-
-    Args:
-        totp_code: TOTP code to validate
-        firebase_uid: Firebase user ID
-
-    Returns:
-        bool: True if fixed OTP code is valid, False otherwise
-    """
-    environment = os.getenv("ENVIRONMENT", "local")
-    is_dev_or_staging = environment in DEV_STAGING_ENVS or environment.lower() in DEV_STAGING_ENVS
-
-    if not is_dev_or_staging:
-        return False
-
-    fixed_otp_code = os.getenv("FIXED_OTP_CODE", "")
-    if fixed_otp_code and totp_code == fixed_otp_code:
-        logger.info(f"Using fixed OTP code for firebase_uid={firebase_uid} in development/staging")
-        return True
-
-    return False
 
 
 def require_mfa_verification(
@@ -103,10 +71,6 @@ def require_mfa_verification(
 
     # Validate TOTP code
     is_valid = TOTPService.verify_totp(secret, totp_code)
-
-    # Allow fixed OTP code in development/staging
-    if not is_valid:
-        is_valid = _check_fixed_otp_code(totp_code, firebase_uid)
 
     if not is_valid:
         logger.warning(f"Invalid TOTP code for firebase_uid={firebase_uid}")

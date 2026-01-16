@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.common.enums import UserRole
 from app.common.secrets import get_secret
+from app.models.totp_secret import TOTPSecret  # noqa: F401 - Import to register model with Base
 from app.models.user import Base, User
 
 logger = logging.getLogger(__name__)
