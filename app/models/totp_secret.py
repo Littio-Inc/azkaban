@@ -3,9 +3,8 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, Column, DateTime, String
-from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+from app.models.user import Base
 
 
 class TOTPSecret(Base):
