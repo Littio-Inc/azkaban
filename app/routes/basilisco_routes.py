@@ -50,6 +50,8 @@ class CreateTransactionRequest(BaseModel):
     origin_provider: str | None = None
     movement_type: str | None = None
     idempotency_key: str | None = None
+    amount_dst: str | None = None
+    currency_dst: str | None = None
 
 
 def _get_transactions_data(
